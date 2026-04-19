@@ -21,7 +21,7 @@ This project currently highlights five Spring AI features in a simple, demo-frie
 - `Structured output` through `/nba/player-profile`
 - `Conversation memory` through `/nba/chat`
 - `Tool calling` through `/nba/chat` and `NBATools`
-- `MCP server + client integration` through `/mcp`, `NBAMcpTools`, and `/nba/mcp/recent-games-summary`
+- `MCP server + client integration` through `/mcp`, `NBAMCPTools`, and `/nba/mcp/recent-games-summary`
 
 The NBA chat flow now also demonstrates `tool calling` by letting Spring AI use a local Java tool for stable NBA player facts.
 The MCP flow demonstrates a different pattern: the app exposes a local MCP server, then calls that server back through an MCP client to fetch recent-game data before summarizing it.
@@ -262,8 +262,8 @@ src/main/java/com/example/helloworld/
 ├── HelloController.java
 ├── HelloWorldApplication.java
 ├── NBAChatResponse.java
-├── NBAMcpRecentGamesResponse.java
-├── NBAMcpTools.java
+├── NBAMCPRecentGamesResponse.java
+├── NBAMCPTools.java
 ├── NBAPlayerProfile.java
 ├── McpServerConfiguration.java
 ├── NBATools.java
@@ -291,7 +291,7 @@ flowchart LR
     M --> N[Local player facts]
     F --> P[MCP Sync Client]
     P --> Q[Local MCP server<br>/mcp]
-    Q --> R[NBAMcpTools]
+    Q --> R[NBAMCPTools]
     F --> G[Spring AI ChatClient]
     G --> H[OpenAI API]
 ```
@@ -309,9 +309,9 @@ The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-
 - `SpringAIService` checks configuration, applies guided prompts, and uses Spring AI's `ChatClient` to call OpenAI.
 - `MessageChatMemoryAdvisor` stores recent NBA conversation context by `conversationId`.
 - `NBATools` exposes a small Java tool so the NBA chat flow can demonstrate Spring AI tool calling.
-- `NBAMcpTools` exposes MCP tools through Spring AI's MCP server starter.
+- `NBAMCPTools` exposes MCP tools through Spring AI's MCP server starter.
 - `McpServerConfiguration` registers the local MCP tools with the MCP server.
-- `NBAMcpRecentGamesResponse` keeps the MCP endpoint response aligned with the other typed API responses in the app.
+- `NBAMCPRecentGamesResponse` keeps the MCP endpoint response aligned with the other typed API responses in the app.
 - `NBAChatResponse` returns the conversation ID and the assistant reply for the chat-memory endpoint.
 - `NBAPlayerProfile` is a Java record used to demonstrate structured output mapping.
 - `src/main/resources/static/index.html` provides the built-in landing page.
