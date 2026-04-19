@@ -53,6 +53,29 @@ curl "http://localhost:8080/ask?message=Tell%20me%20a%20short%20joke%20about%20J
 
 If AI is not configured, the app returns a helpful setup message instead of failing hard.
 
+### `GET /nba/player-profile`
+
+Demonstrates structured output with an NBA use case. The app asks the model for a player profile and maps the response directly into a Java record.
+
+Example:
+
+```bash
+curl "http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry"
+```
+
+Example JSON response:
+
+```json
+{
+  "playerName": "Stephen Curry",
+  "team": "Golden State Warriors",
+  "position": "Point Guard",
+  "strengths": ["3-point shooting", "off-ball movement", "ball handling"],
+  "playingStyle": "Elite perimeter creator who bends defenses with movement and range.",
+  "summary": "One of the most influential offensive players in NBA history."
+}
+```
+
 ### Browser UI
 
 Open:
@@ -82,6 +105,7 @@ Once the app starts, try:
 - `http://localhost:8080`
 - `http://localhost:8080/hello`
 - `http://localhost:8080/ask?message=What%20is%20Spring%20AI`
+- `http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry`
 
 ## AI Configuration
 
@@ -111,11 +135,12 @@ mvn test
 
 ```text
 src/main/java/com/example/helloworld/
-├── AiController.java
-├── AiService.java
+├── AIController.java
+├── AIService.java
 ├── HelloController.java
 ├── HelloWorldApplication.java
-└── SpringAiService.java
+├── NBAPlayerProfile.java
+└── SpringAIService.java
 ```
 
 ## Architecture Overview
@@ -124,9 +149,11 @@ src/main/java/com/example/helloworld/
 flowchart LR
     A[Browser or curl] --> B[Spring Boot App]
     B --> C[HelloController<br>/hello]
-    B --> D[AiController<br>/ask]
-    D --> E[AiService]
-    E --> F[SpringAiService]
+    B --> D[AIController<br>/ask]
+    B --> I[AIController<br>/nba/player-profile]
+    D --> E[AIService]
+    I --> E
+    E --> F[SpringAIService]
     F --> G[Spring AI ChatClient]
     G --> H[OpenAI API]
 ```
@@ -136,9 +163,11 @@ The `/hello` request is handled directly by the app, while `/ask` flows through 
 ## How It Works
 
 - `HelloController` serves the `/hello` endpoint.
-- `AiController` accepts user prompts through `/ask`.
-- `AiService` defines the abstraction for AI responses.
-- `SpringAiService` checks configuration and uses Spring AI's `ChatClient` to call OpenAI.
+- `AIController` accepts user prompts through `/ask`.
+- `AIController` also exposes `/nba/player-profile` for the structured-output demo.
+- `AIService` defines the abstraction for AI responses.
+- `SpringAIService` checks configuration, applies a guided Spring-focused prompt for `/ask`, and uses Spring AI's `ChatClient` to call OpenAI.
+- `NBAPlayerProfile` is a Java record used to demonstrate structured output mapping.
 - `src/main/resources/static/index.html` provides the built-in landing page.
 
 ## Example Requests
@@ -149,6 +178,10 @@ curl http://localhost:8080/hello
 
 ```bash
 curl "http://localhost:8080/ask?message=Explain%20dependency%20injection%20in%20one%20sentence"
+```
+
+```bash
+curl "http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry"
 ```
 
 ## Why This Project Is Useful
