@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring AI Starter</title>
+    <style>
+        :root {
+            --bg: #08111f;
+            --bg-soft: #10233b;
+            --panel: rgba(7, 16, 29, 0.72);
+            --panel-strong: rgba(6, 12, 22, 0.92);
+            --line: rgba(255, 255, 255, 0.12);
+            --text: #f5f1e8;
+            --muted: #a9b9cc;
+            --accent: #7df9d0;
+            --accent-warm: #ffb86c;
+            --shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(125, 249, 208, 0.18), transparent 30%),
+                radial-gradient(circle at 85% 10%, rgba(255, 184, 108, 0.22), transparent 24%),
+                linear-gradient(135deg, #07101d 0%, #0a1730 42%, #050913 100%);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            inset: auto;
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(30px);
+            opacity: 0.55;
+            animation: drift 14s ease-in-out infinite alternate;
+        }
+
+        body::before {
+            width: 26rem;
+            height: 26rem;
+            top: 8%;
+            right: -6rem;
+            background: rgba(125, 249, 208, 0.12);
+        }
+
+        body::after {
+            width: 20rem;
+            height: 20rem;
+            bottom: 8%;
+            left: -5rem;
+            background: rgba(255, 184, 108, 0.1);
+            animation-duration: 18s;
+        }
+
+        main {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
+            gap: 2rem;
+            padding: 2rem clamp(1.25rem, 3vw, 3rem) 3rem;
+            align-items: stretch;
+        }
+
+        .hero-copy,
+        .workspace {
+            opacity: 0;
+            transform: translateY(24px);
+            animation: rise 0.85s ease forwards;
+        }
+
+        .workspace {
+            animation-delay: 0.12s;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            color: var(--accent);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-size: 0.74rem;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+        }
+
+        .hero-copy {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 1rem 0;
+            max-width: 40rem;
+        }
+
+        h1 {
+            margin: 1.1rem 0 1rem;
+            font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+            font-weight: 700;
+            font-size: clamp(3rem, 7vw, 6.2rem);
+            line-height: 0.94;
+            letter-spacing: -0.04em;
+        }
+
+        .hero-copy p {
+            margin: 0;
+            max-width: 34rem;
+            font-size: clamp(1.03rem, 1.7vw, 1.2rem);
+            line-height: 1.7;
+            color: var(--muted);
+        }
+
+        .cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.85rem;
+            margin-top: 1.8rem;
+        }
+
+        .cta,
+        .ghost {
+            appearance: none;
+            border-radius: 999px;
+            padding: 0.95rem 1.35rem;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+        }
+
+        .cta {
+            color: #031018;
+            background: linear-gradient(135deg, var(--accent) 0%, #baffea 100%);
+            box-shadow: 0 12px 30px rgba(125, 249, 208, 0.25);
+        }
+
+        .ghost {
+            color: var(--text);
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .cta:hover,
+        .ghost:hover,
+        .prompt-chip:hover,
+        .send-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .facts {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
+            margin-top: 2.25rem;
+        }
+
+        .fact {
+            padding-top: 1rem;
+            border-top: 1px solid var(--line);
+        }
+
+        .fact strong {
+            display: block;
+            font-size: 0.92rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .fact span {
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+
+        .workspace {
+            display: flex;
+            min-height: min(46rem, calc(100vh - 4rem));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+                var(--panel);
+            backdrop-filter: blur(22px);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .workspace-shell {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            width: 100%;
+        }
+
+        .workspace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.15rem;
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .workspace-title strong {
+            display: block;
+            font-size: 1rem;
+        }
+
+        .workspace-title span,
+        .status-note {
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        .status-pill {
+            border-radius: 999px;
+            padding: 0.45rem 0.8rem;
+            background: rgba(125, 249, 208, 0.12);
+            border: 1px solid rgba(125, 249, 208, 0.2);
+            color: var(--accent);
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .chat-log {
+            padding: 1rem 1.15rem 1.4rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 25%),
+                linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.16));
+        }
+
+        .message {
+            max-width: 88%;
+            padding: 0.95rem 1rem;
+            border-radius: 1.2rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            animation: bubble-in 240ms ease;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: rgba(125, 249, 208, 0.11);
+            border: 1px solid rgba(125, 249, 208, 0.2);
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .message.system {
+            align-self: center;
+            background: rgba(255, 184, 108, 0.09);
+            border: 1px solid rgba(255, 184, 108, 0.2);
+            color: #ffd6a4;
+            text-align: center;
+        }
+
+        .composer {
+            padding: 1rem 1.15rem 1.15rem;
+            border-top: 1px solid var(--line);
+            background: var(--panel-strong);
+        }
+
+        .prompt-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .prompt-chip {
+            appearance: none;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--muted);
+            border-radius: 999px;
+            padding: 0.55rem 0.9rem;
+            font: inherit;
+            cursor: pointer;
+            transition: transform 180ms ease, color 180ms ease, border-color 180ms ease;
+        }
+
+        .prompt-chip:hover {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, 0.22);
+        }
+
+        .composer-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.8rem;
+            align-items: end;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 5.8rem;
+            resize: vertical;
+            border-radius: 1.2rem;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            padding: 0.95rem 1rem;
+            font: inherit;
+            line-height: 1.6;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: rgba(125, 249, 208, 0.48);
+            box-shadow: 0 0 0 3px rgba(125, 249, 208, 0.08);
+        }
+
+        .send-button {
+            border: none;
+            border-radius: 999px;
+            min-width: 8.4rem;
+            padding: 0.95rem 1.2rem;
+            font: inherit;
+            font-weight: 700;
+            color: #031018;
+            background: linear-gradient(135deg, var(--accent-warm), #ffd28c);
+            cursor: pointer;
+            transition: transform 180ms ease, opacity 180ms ease;
+        }
+
+        .send-button:disabled {
+            opacity: 0.55;
+            cursor: wait;
+        }
+
+        .mini-note {
+            margin-top: 0.7rem;
+            color: var(--muted);
+            font-size: 0.86rem;
+        }
+
+        .details {
+            padding: 0 1.25rem 3rem;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-block {
+            padding: 1.2rem 0;
+            border-top: 1px solid var(--line);
+        }
+
+        .detail-block strong {
+            display: block;
+            margin-bottom: 0.45rem;
+            font-size: 0.95rem;
+        }
+
+        .detail-block p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        @keyframes rise {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bubble-in {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes drift {
+            from {
+                transform: translate3d(0, 0, 0) scale(1);
+            }
+            to {
+                transform: translate3d(1.5rem, -1rem, 0) scale(1.08);
+            }
+        }
+
+        @media (max-width: 980px) {
+            .hero {
+                grid-template-columns: 1fr;
+                min-height: auto;
+            }
+
+            .workspace {
+                min-height: 38rem;
+            }
+
+            .facts,
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero {
+                padding: 1rem 1rem 2rem;
+            }
+
+            .workspace-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .composer-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .send-button {
+                width: 100%;
+            }
+
+            .message {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <section class="hero">
+        <div class="hero-copy">
+            <span class="eyebrow">Spring Boot + OpenAI</span>
+            <h1>Talk to your app without leaving the browser.</h1>
+            <p>
+                This starter now includes a polished front door for your AI endpoint. Ask questions,
+                test prompts, and watch the OpenAI-backed response arrive in a focused workspace built
+                directly into the app.
+            </p>
+            <div class="cta-row">
+                <a class="cta" href="#workspace">Try the live prompt box</a>
+                <a class="ghost" href="/hello" target="_blank" rel="noreferrer">Open /hello</a>
+            </div>
+            <div class="facts">
+                <div class="fact">
+                    <strong>Fast verification</strong>
+                    <span>Use the page itself to confirm your Spring AI wiring works end to end.</span>
+                </div>
+                <div class="fact">
+                    <strong>Zero extra backend</strong>
+                    <span>The UI talks to your existing `/ask` route, so the app stays easy to understand.</span>
+                </div>
+                <div class="fact">
+                    <strong>Better demos</strong>
+                    <span>You can now show the project as a real mini product instead of a raw query string.</span>
+                </div>
+            </div>
+        </div>
+
+        <section class="workspace" id="workspace" aria-label="AI workspace">
+            <div class="workspace-shell">
+                <div class="workspace-header">
+                    <div class="workspace-title">
+                        <strong>Live Prompt Workspace</strong>
+                        <span>Ask the existing `/ask` endpoint anything you want to test.</span>
+                    </div>
+                    <div class="status-pill" id="status-pill">Ready for input</div>
+                </div>
+
+                <div class="chat-log" id="chat-log" aria-live="polite">
+                    <div class="message assistant">Ask a question below to test the Spring AI flow in a friendlier way.</div>
+                </div>
+
+                <div class="composer">
+                    <div class="prompt-row" aria-label="Sample prompts">
+                        <button class="prompt-chip" type="button" data-prompt="Explain Spring AI in plain English.">Explain Spring AI</button>
+                        <button class="prompt-chip" type="button" data-prompt="Write a short Java joke.">Java joke</button>
+                        <button class="prompt-chip" type="button" data-prompt="Give me three beginner project ideas using Spring Boot and AI.">Project ideas</button>
+                    </div>
+                    <form id="ask-form">
+                        <div class="composer-grid">
+                            <label for="prompt" class="sr-only" style="position:absolute;left:-9999px;">Prompt</label>
+                            <textarea id="prompt" name="prompt" placeholder="Try: Summarize what this starter app does."></textarea>
+                            <button class="send-button" id="send-button" type="submit">Send Prompt</button>
+                        </div>
+                    </form>
+                    <div class="mini-note" id="status-note">The page calls `/ask` and renders the plain text response here.</div>
+                </div>
+            </div>
+        </section>
+    </section>
+
+    <section class="details">
+        <div class="details-grid">
+            <div class="detail-block">
+                <strong>Use it as a smoke test</strong>
+                <p>If the page responds here, your controller, service, API key, and model configuration are all lined up.</p>
+            </div>
+            <div class="detail-block">
+                <strong>Use it as a prompt bench</strong>
+                <p>Try a few prompts in sequence and compare tone, length, and usefulness without editing the URL every time.</p>
+            </div>
+            <div class="detail-block">
+                <strong>Use it as a base</strong>
+                <p>This can grow into chat memory, streaming, model selection, or a domain-specific assistant when you are ready.</p>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+    const form = document.getElementById("ask-form");
+    const promptInput = document.getElementById("prompt");
+    const sendButton = document.getElementById("send-button");
+    const chatLog = document.getElementById("chat-log");
+    const statusPill = document.getElementById("status-pill");
+    const statusNote = document.getElementById("status-note");
+    const promptChips = document.querySelectorAll(".prompt-chip");
+
+    function addMessage(role, text) {
+        const bubble = document.createElement("div");
+        bubble.className = `message ${role}`;
+        bubble.textContent = text;
+        chatLog.appendChild(bubble);
+        chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function setBusy(isBusy) {
+        sendButton.disabled = isBusy;
+        sendButton.textContent = isBusy ? "Thinking..." : "Send Prompt";
+        statusPill.textContent = isBusy ? "Waiting on OpenAI" : "Ready for input";
+        statusNote.textContent = isBusy
+            ? "Your prompt is on its way to the Spring AI backend."
+            : "The page calls `/ask` and renders the plain text response here.";
+    }
+
+    async function askAssistant(message) {
+        addMessage("user", message);
+        setBusy(true);
+
+        try {
+            const response = await fetch(`/ask?message=${encodeURIComponent(message)}`);
+            const text = await response.text();
+
+            if (!response.ok) {
+                throw new Error(text || "Request failed.");
+            }
+
+            addMessage("assistant", text);
+        } catch (error) {
+            addMessage("system", error.message || "Something went wrong while calling /ask.");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = promptInput.value.trim();
+
+        if (!message) {
+            statusPill.textContent = "Prompt required";
+            statusNote.textContent = "Add a message before sending.";
+            return;
+        }
+
+        promptInput.value = "";
+        await askAssistant(message);
+        promptInput.focus();
+    });
+
+    promptChips.forEach((chip) => {
+        chip.addEventListener("click", () => {
+            promptInput.value = chip.dataset.prompt;
+            promptInput.focus();
+        });
+    });
+</script>
+</body>
+</html>
