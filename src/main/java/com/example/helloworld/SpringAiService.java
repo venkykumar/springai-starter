@@ -3,6 +3,8 @@ package com.example.helloworld;
 import java.util.List;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -11,10 +13,14 @@ import org.springframework.stereotype.Service;
 public class SpringAIService implements AIService {
 
     private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
+    private final ChatMemory chatMemory;
     private final Environment environment;
 
-    public SpringAIService(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider, Environment environment) {
+    public SpringAIService(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider,
+            ChatMemory chatMemory,
+            Environment environment) {
         this.chatClientBuilderProvider = chatClientBuilderProvider;
+        this.chatMemory = chatMemory;
         this.environment = environment;
     }
 
@@ -64,6 +70,31 @@ public class SpringAIService implements AIService {
                 .entity(NBAPlayerProfile.class);
     }
 
+    @Override
+    public NBAChatResponse chatAboutNBA(String conversationId, String message) {
+        String normalizedConversationId = normalizeConversationId(conversationId);
+        String configurationError = getConfigurationError();
+        if (configurationError != null) {
+            return new NBAChatResponse(normalizedConversationId, configurationError);
+        }
+
+        String answer = createChatClient().prompt()
+                .advisors(advisorSpec -> advisorSpec
+                        .advisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                        .param(ChatMemory.CONVERSATION_ID, normalizedConversationId))
+                .system("""
+                        You are an NBA assistant for a Spring AI demo application.
+                        Keep continuity across the conversation and answer follow-up questions using prior context when helpful.
+                        Use generally known basketball knowledge and avoid pretending to know breaking news, injuries, or live stats.
+                        If the user asks about a player or team from earlier in the conversation, use the remembered context naturally.
+                        """)
+                .user(message)
+                .call()
+                .content();
+
+        return new NBAChatResponse(normalizedConversationId, answer);
+    }
+
     private ChatClient createChatClient() {
         ChatClient.Builder chatClientBuilder = chatClientBuilderProvider.getIfAvailable();
         if (chatClientBuilder == null) {
@@ -85,5 +116,12 @@ public class SpringAIService implements AIService {
         }
 
         return null;
+    }
+
+    private String normalizeConversationId(String conversationId) {
+        if (conversationId == null || conversationId.isBlank()) {
+            return "demo-conversation";
+        }
+        return conversationId;
     }
 }

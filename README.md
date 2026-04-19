@@ -6,8 +6,18 @@ It includes:
 
 - a basic REST endpoint at `/hello`
 - an AI-powered endpoint at `/ask`
+- an NBA structured-output endpoint at `/nba/player-profile`
+- an NBA chat endpoint with conversation memory at `/nba/chat`
 - a small browser UI served from the app itself
 - example tests for the controllers
+
+## Showcase Features
+
+This project currently highlights three Spring AI features in a simple, demo-friendly way:
+
+- `Guided chat responses` through `/ask`
+- `Structured output` through `/nba/player-profile`
+- `Conversation memory` through `/nba/chat`
 
 ## What Is Spring AI?
 
@@ -44,6 +54,7 @@ Hello, world!
 ### `GET /ask`
 
 Accepts a `message` query parameter and sends it to the configured OpenAI chat model through Spring AI.
+This endpoint uses a guided system prompt so responses stay focused on Java, Spring Boot, and Spring AI topics.
 
 Example:
 
@@ -73,6 +84,29 @@ Example JSON response:
   "strengths": ["3-point shooting", "off-ball movement", "ball handling"],
   "playingStyle": "Elite perimeter creator who bends defenses with movement and range.",
   "summary": "One of the most influential offensive players in NBA history."
+}
+```
+
+### `GET /nba/chat`
+
+Demonstrates Spring AI chat memory with an NBA-focused conversation. Pass the same `conversationId` across requests and the assistant can use earlier messages as context for follow-up questions.
+
+Examples:
+
+```bash
+curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell%20me%20about%20Stephen%20Curry"
+```
+
+```bash
+curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=What%20are%20his%20biggest%20strengths%3F"
+```
+
+Example JSON response:
+
+```json
+{
+  "conversationId": "warriors-thread",
+  "answer": "Stephen Curry is widely regarded as one of the greatest shooters in NBA history..."
 }
 ```
 
@@ -106,6 +140,7 @@ Once the app starts, try:
 - `http://localhost:8080/hello`
 - `http://localhost:8080/ask?message=What%20is%20Spring%20AI`
 - `http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry`
+- `http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell%20me%20about%20Stephen%20Curry`
 
 ## AI Configuration
 
@@ -131,6 +166,31 @@ If `SPRING_AI_MODEL_CHAT` is not set to `openai`, or if `OPENAI_API_KEY` is miss
 mvn test
 ```
 
+## Quick Demo Flow
+
+If you want to showcase the new AI features quickly, try these in order:
+
+### 1. Guided Spring AI response
+
+```bash
+curl "http://localhost:8080/ask?message=What%20is%20Spring%20AI"
+```
+
+### 2. Structured NBA player profile
+
+```bash
+curl "http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry"
+```
+
+### 3. Multi-turn NBA conversation with memory
+
+```bash
+curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell%20me%20about%20Stephen%20Curry"
+curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=What%20are%20his%20biggest%20strengths%3F"
+```
+
+The second NBA chat request reuses the same `conversationId`, so Spring AI can keep the conversation context in memory.
+
 ## Project Structure
 
 ```text
@@ -139,6 +199,7 @@ src/main/java/com/example/helloworld/
 ├── AIService.java
 ├── HelloController.java
 ├── HelloWorldApplication.java
+├── NBAChatResponse.java
 ├── NBAPlayerProfile.java
 └── SpringAIService.java
 ```
@@ -151,22 +212,29 @@ flowchart LR
     B --> C[HelloController<br>/hello]
     B --> D[AIController<br>/ask]
     B --> I[AIController<br>/nba/player-profile]
+    B --> J[AIController<br>/nba/chat]
     D --> E[AIService]
     I --> E
+    J --> E
     E --> F[SpringAIService]
+    F --> K[MessageChatMemoryAdvisor]
+    K --> L[In-memory chat memory]
     F --> G[Spring AI ChatClient]
     G --> H[OpenAI API]
 ```
 
-The `/hello` request is handled directly by the app, while `/ask` flows through the service layer into Spring AI and then out to OpenAI.
+The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-profile`, and `/nba/chat` flow through the service layer into Spring AI and then out to OpenAI. The NBA chat endpoint also stores short conversation history in memory for follow-up questions.
 
 ## How It Works
 
 - `HelloController` serves the `/hello` endpoint.
 - `AIController` accepts user prompts through `/ask`.
 - `AIController` also exposes `/nba/player-profile` for the structured-output demo.
+- `AIController` exposes `/nba/chat` for the memory-based NBA conversation demo.
 - `AIService` defines the abstraction for AI responses.
-- `SpringAIService` checks configuration, applies a guided Spring-focused prompt for `/ask`, and uses Spring AI's `ChatClient` to call OpenAI.
+- `SpringAIService` checks configuration, applies guided prompts, and uses Spring AI's `ChatClient` to call OpenAI.
+- `MessageChatMemoryAdvisor` stores recent NBA conversation context by `conversationId`.
+- `NBAChatResponse` returns the conversation ID and the assistant reply for the chat-memory endpoint.
 - `NBAPlayerProfile` is a Java record used to demonstrate structured output mapping.
 - `src/main/resources/static/index.html` provides the built-in landing page.
 
@@ -182,6 +250,14 @@ curl "http://localhost:8080/ask?message=Explain%20dependency%20injection%20in%20
 
 ```bash
 curl "http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry"
+```
+
+```bash
+curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell%20me%20about%20Stephen%20Curry"
+```
+
+```bash
+curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=What%20are%20his%20biggest%20strengths%3F"
 ```
 
 ## Why This Project Is Useful

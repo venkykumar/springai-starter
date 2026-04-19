@@ -24,6 +24,11 @@ class AIControllerTest {
                         java.util.List.of("Shooting", "Ball handling"), "High-movement scorer",
                         "One of the most recognizable guards in the NBA.");
             }
+
+            @Override
+            public NBAChatResponse chatAboutNBA(String conversationId, String message) {
+                return new NBAChatResponse(conversationId, "NBA response for: " + message);
+            }
         };
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AIController(aiService)).build();
 
@@ -46,6 +51,11 @@ class AIControllerTest {
                         java.util.List.of("3-point shooting", "Off-ball movement"), "Elite perimeter creator",
                         "A dynamic offensive engine and all-time great shooter.");
             }
+
+            @Override
+            public NBAChatResponse chatAboutNBA(String conversationId, String message) {
+                return new NBAChatResponse(conversationId, "unused");
+            }
         };
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AIController(aiService)).build();
 
@@ -59,6 +69,38 @@ class AIControllerTest {
                           "strengths": ["3-point shooting", "Off-ball movement"],
                           "playingStyle": "Elite perimeter creator",
                           "summary": "A dynamic offensive engine and all-time great shooter."
+                        }
+                        """));
+    }
+
+    @Test
+    void nbaChatEndpointReturnsConversationAwareResponse() throws Exception {
+        AIService aiService = new AIService() {
+            @Override
+            public String ask(String message) {
+                return "unused";
+            }
+
+            @Override
+            public NBAPlayerProfile generateNBAPlayerProfile(String playerName) {
+                return null;
+            }
+
+            @Override
+            public NBAChatResponse chatAboutNBA(String conversationId, String message) {
+                return new NBAChatResponse(conversationId, "Steph Curry is an elite shooter.");
+            }
+        };
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AIController(aiService)).build();
+
+        mockMvc.perform(get("/nba/chat")
+                        .param("conversationId", "warriors-thread")
+                        .param("message", "Tell me about Steph Curry"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        {
+                          "conversationId": "warriors-thread",
+                          "answer": "Steph Curry is an elite shooter."
                         }
                         """));
     }

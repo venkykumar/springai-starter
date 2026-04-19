@@ -22,4 +22,11 @@ public class AIController {
     public NBAPlayerProfile playerProfile(@RequestParam(defaultValue = "Stephen Curry") String playerName) {
         return aiService.generateNBAPlayerProfile(playerName);
     }
+
+    @GetMapping("/nba/chat")
+    public NBAChatResponse nbaChat(
+            @RequestParam(defaultValue = "demo-conversation") String conversationId,
+            @RequestParam(defaultValue = "Tell me about Stephen Curry.") String message) {
+        return aiService.chatAboutNBA(conversationId, message);
+    }
 }
