@@ -1,4 +1,4 @@
-package com.example.helloworld;
+package com.example.springaistarter;
 
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;

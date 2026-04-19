@@ -1,4 +1,4 @@
-package com.example.helloworld;
+package com.example.springaistarter;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;

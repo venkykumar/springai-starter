@@ -14,7 +14,7 @@
     <artifactId>springai-starter</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>springai-starter</name>
-    <description>First Spring Boot hello world project</description>
+    <description>Spring AI Starter project</description>
 
     <properties>
         <java.version>25</java.version>
