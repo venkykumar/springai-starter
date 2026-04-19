@@ -29,6 +29,12 @@ class AIControllerTest {
             public NBAChatResponse chatAboutNBA(String conversationId, String message) {
                 return new NBAChatResponse(conversationId, "NBA response for: " + message);
             }
+
+            @Override
+            public NBAMCPRecentGamesResponse summarizeRecentGamesWithMCP(String playerName) {
+                return new NBAMCPRecentGamesResponse(playerName, "local-mcp-server", "get_recent_games_summary",
+                        java.util.List.of("2026-04-17 vs Lakers: 31 points, 8 assists."), "Recent games summary");
+            }
         };
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AIController(aiService)).build();
 
@@ -55,6 +61,11 @@ class AIControllerTest {
             @Override
             public NBAChatResponse chatAboutNBA(String conversationId, String message) {
                 return new NBAChatResponse(conversationId, "unused");
+            }
+
+            @Override
+            public NBAMCPRecentGamesResponse summarizeRecentGamesWithMCP(String playerName) {
+                return null;
             }
         };
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AIController(aiService)).build();
@@ -90,6 +101,11 @@ class AIControllerTest {
             public NBAChatResponse chatAboutNBA(String conversationId, String message) {
                 return new NBAChatResponse(conversationId, "Steph Curry is an elite shooter.");
             }
+
+            @Override
+            public NBAMCPRecentGamesResponse summarizeRecentGamesWithMCP(String playerName) {
+                return null;
+            }
         };
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AIController(aiService)).build();
 
@@ -101,6 +117,54 @@ class AIControllerTest {
                         {
                           "conversationId": "warriors-thread",
                           "answer": "Steph Curry is an elite shooter."
+                        }
+                        """));
+    }
+
+    @Test
+    void nbaMCPRecentGamesEndpointReturnsStructuredResponse() throws Exception {
+        AIService aiService = new AIService() {
+            @Override
+            public String ask(String message) {
+                return "unused";
+            }
+
+            @Override
+            public NBAPlayerProfile generateNBAPlayerProfile(String playerName) {
+                return null;
+            }
+
+            @Override
+            public NBAChatResponse chatAboutNBA(String conversationId, String message) {
+                return null;
+            }
+
+            @Override
+            public NBAMCPRecentGamesResponse summarizeRecentGamesWithMCP(String playerName) {
+                return new NBAMCPRecentGamesResponse(
+                        playerName,
+                        "local-mcp-server",
+                        "get_recent_games_summary",
+                        java.util.List.of(
+                                "2026-04-17 vs Lakers: 31 points, 5 rebounds, 8 assists in a 118-109 win.",
+                                "2026-04-14 vs Clippers: 27 points, 4 rebounds, 6 assists in a 111-115 loss."),
+                        "Stephen Curry has been scoring efficiently while still creating offense for teammates.");
+            }
+        };
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AIController(aiService)).build();
+
+        mockMvc.perform(get("/nba/mcp/recent-games-summary").param("playerName", "Stephen Curry"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        {
+                          "playerName": "Stephen Curry",
+                          "source": "local-mcp-server",
+                          "toolName": "get_recent_games_summary",
+                          "recentGames": [
+                            "2026-04-17 vs Lakers: 31 points, 5 rebounds, 8 assists in a 118-109 win.",
+                            "2026-04-14 vs Clippers: 27 points, 4 rebounds, 6 assists in a 111-115 loss."
+                          ],
+                          "summary": "Stephen Curry has been scoring efficiently while still creating offense for teammates."
                         }
                         """));
     }

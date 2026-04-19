@@ -7,4 +7,6 @@ public interface AIService {
     NBAPlayerProfile generateNBAPlayerProfile(String playerName);
 
     NBAChatResponse chatAboutNBA(String conversationId, String message);
+
+    NBAMCPRecentGamesResponse summarizeRecentGamesWithMCP(String playerName);
 }

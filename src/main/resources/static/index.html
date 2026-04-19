@@ -375,6 +375,83 @@
             line-height: 1.58;
         }
 
+        .mcp-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 0.6rem;
+            font-size: 0.8rem;
+        }
+
+        .mcp-flow.hidden { display: none; }
+
+        .mcp-step {
+            padding: 0.28rem 0.6rem;
+            border-radius: 999px;
+            background: rgba(125, 249, 208, 0.08);
+            border: 1px solid rgba(125, 249, 208, 0.2);
+            color: var(--accent);
+            font-family: "SFMono-Regular", "Menlo", "Consolas", monospace;
+        }
+
+        .mcp-arrow { color: var(--muted); }
+
+        .mcp-response { display: grid; gap: 0.85rem; }
+
+        .mcp-meta {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .mcp-meta-item {
+            padding: 0.3rem 0.65rem;
+            border-radius: 999px;
+            background: rgba(143, 203, 255, 0.08);
+            border: 1px solid rgba(143, 203, 255, 0.15);
+            color: var(--accent-ice);
+            font-size: 0.8rem;
+            font-family: "SFMono-Regular", "Menlo", "Consolas", monospace;
+        }
+
+        .mcp-section-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .mcp-games-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 0.4rem;
+        }
+
+        .mcp-game-item {
+            padding: 0.6rem 0.85rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 0.65rem;
+            color: var(--text);
+            line-height: 1.5;
+            font-family: inherit;
+        }
+
+        .mcp-summary-text {
+            padding: 0.85rem;
+            background: rgba(125, 249, 208, 0.04);
+            border: 1px solid rgba(125, 249, 208, 0.14);
+            border-radius: 0.75rem;
+            color: var(--text);
+            line-height: 1.65;
+            font-family: inherit;
+            white-space: pre-wrap;
+        }
+
         @media (max-width: 720px) {
             main {
                 width: min(100% - 1rem, 1120px);
@@ -420,6 +497,7 @@
                 <button class="tab-button active" type="button" data-endpoint="ask">/ask</button>
                 <button class="tab-button" type="button" data-endpoint="player-profile">/nba/player-profile</button>
                 <button class="tab-button" type="button" data-endpoint="nba-chat">/nba/chat</button>
+                <button class="tab-button" type="button" data-endpoint="mcp-recent-games">/nba/mcp/recent-games-summary</button>
             </div>
 
             <div class="workspace-body">
@@ -428,6 +506,17 @@
                     <div class="route-line" id="endpoint-route">GET /ask?message=...</div>
                     <div class="helper-text" id="endpoint-description">Ask a Spring or Java question and get a guided answer.</div>
                     <div class="mini-feature-list" id="feature-list"></div>
+                    <div class="mcp-flow hidden" id="mcp-flow">
+                        <span class="mcp-step">Browser</span>
+                        <span class="mcp-arrow">→</span>
+                        <span class="mcp-step">Spring AI Service</span>
+                        <span class="mcp-arrow">→</span>
+                        <span class="mcp-step">MCP Client</span>
+                        <span class="mcp-arrow">→</span>
+                        <span class="mcp-step">NBAMCPTools</span>
+                        <span class="mcp-arrow">→</span>
+                        <span class="mcp-step">AI Summary</span>
+                    </div>
                 </div>
 
                 <div class="sample-row" id="sample-row" aria-label="Sample requests"></div>
@@ -464,7 +553,7 @@
                     <strong>Endpoints at a Glance</strong>
                     <div class="helper-text">A compact summary of what each route is for.</div>
                 </div>
-                <div class="status-pill">4 routes</div>
+                <div class="status-pill">6 routes</div>
             </header>
 
             <div class="endpoint-items">
@@ -502,6 +591,24 @@
                     </div>
                     <p>Use the same conversation ID for multi-turn NBA follow-up questions, and ask for quick player facts through the local NBA tool.</p>
                     <pre class="code-line">curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&amp;message=Tell%20me%20about%20Stephen%20Curry"</pre>
+                </article>
+
+                <article class="endpoint-item">
+                    <div class="endpoint-topline">
+                        <strong>/nba/mcp/recent-games-summary</strong>
+                        <span class="endpoint-tag">MCP + JSON</span>
+                    </div>
+                    <p>Fetch recent-game data through the local MCP server, then return a typed JSON summary for the selected NBA player.</p>
+                    <pre class="code-line">curl "http://localhost:8080/nba/mcp/recent-games-summary?playerName=Stephen%20Curry"</pre>
+                </article>
+
+                <article class="endpoint-item">
+                    <div class="endpoint-topline">
+                        <strong>/mcp</strong>
+                        <span class="endpoint-tag">Local MCP server</span>
+                    </div>
+                    <p>Streamable HTTP MCP endpoint exposed by the app for MCP clients. It currently serves the recent-games and supported-players demo tools.</p>
+                    <pre class="code-line">MCP server base endpoint: http://localhost:8080/mcp</pre>
                 </article>
             </div>
         </section>
@@ -573,6 +680,27 @@
                     url: `/nba/chat?conversationId=${encodeURIComponent(conversationId)}&message=${encodeURIComponent(message)}`
                 };
             }
+        },
+        "mcp-recent-games": {
+            title: "NBA MCP Recent Games",
+            route: "GET /nba/mcp/recent-games-summary?playerName=...",
+            description: "Call the local MCP server for recent-game data, then return a typed JSON response with the MCP output and a short summary.",
+            placeholder: "Try: Stephen Curry",
+            label: "Player name",
+            usesConversation: false,
+            features: ["MCP integration", "Typed API response"],
+            samples: [
+                "Stephen Curry",
+                "LeBron James",
+                "Nikola Jokic"
+            ],
+            buildRequest() {
+                const playerName = promptInput.value.trim() || "Stephen Curry";
+                return {
+                    preview: `GET /nba/mcp/recent-games-summary?playerName=${encodeURIComponent(playerName)}`,
+                    url: `/nba/mcp/recent-games-summary?playerName=${encodeURIComponent(playerName)}`
+                };
+            }
         }
     };
 
@@ -640,6 +768,7 @@
             pill.textContent = feature;
             featureList.appendChild(pill);
         });
+        document.getElementById("mcp-flow").classList.toggle("hidden", activeEndpoint !== "mcp-recent-games");
         renderSamples(activeEndpoint);
         updateRequestPreview();
     }
@@ -660,7 +789,17 @@
                 throw new Error(payload || "Request failed.");
             }
 
-            responseView.textContent = payload;
+            if (activeEndpoint === "mcp-recent-games") {
+                try {
+                    const parsed = JSON.parse(payload);
+                    responseView.innerHTML = "";
+                    responseView.appendChild(renderMcpResponse(parsed));
+                } catch {
+                    responseView.textContent = payload;
+                }
+            } else {
+                responseView.textContent = payload;
+            }
             setBusy(false);
         } catch (error) {
             responseView.textContent = error.message || "Something went wrong while calling the endpoint.";
@@ -689,6 +828,10 @@
                 promptInput.value = "Tell me about Stephen Curry.";
             }
 
+            if (activeEndpoint === "mcp-recent-games" && !promptInput.value.trim()) {
+                promptInput.value = "Stephen Curry";
+            }
+
             updateEndpointUI();
         });
     });
@@ -700,6 +843,52 @@
 
     promptInput.addEventListener("input", updateRequestPreview);
     conversationInput.addEventListener("input", updateRequestPreview);
+
+    function renderMcpResponse(data) {
+        const root = document.createElement("div");
+        root.className = "mcp-response";
+
+        const meta = document.createElement("div");
+        meta.className = "mcp-meta";
+        [`source: ${data.source || "—"}`, `tool: ${data.toolName || "—"}`, `player: ${data.playerName || "—"}`].forEach(text => {
+            const pill = document.createElement("span");
+            pill.className = "mcp-meta-item";
+            pill.textContent = text;
+            meta.appendChild(pill);
+        });
+        root.appendChild(meta);
+
+        if (data.recentGames && data.recentGames.length > 0) {
+            const label = document.createElement("div");
+            label.className = "mcp-section-label";
+            label.textContent = "Recent Games (from MCP server)";
+            root.appendChild(label);
+
+            const list = document.createElement("ul");
+            list.className = "mcp-games-list";
+            data.recentGames.forEach(game => {
+                const item = document.createElement("li");
+                item.className = "mcp-game-item";
+                item.textContent = game;
+                list.appendChild(item);
+            });
+            root.appendChild(list);
+        }
+
+        if (data.summary) {
+            const label = document.createElement("div");
+            label.className = "mcp-section-label";
+            label.textContent = "AI Summary";
+            root.appendChild(label);
+
+            const summary = document.createElement("div");
+            summary.className = "mcp-summary-text";
+            summary.textContent = data.summary;
+            root.appendChild(summary);
+        }
+
+        return root;
+    }
 
     updateEndpointUI();
 </script>

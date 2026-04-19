@@ -29,4 +29,10 @@ public class AIController {
             @RequestParam(defaultValue = "Tell me about Stephen Curry.") String message) {
         return aiService.chatAboutNBA(conversationId, message);
     }
+
+    @GetMapping("/nba/mcp/recent-games-summary")
+    public NBAMCPRecentGamesResponse nbaMCPRecentGamesSummary(
+            @RequestParam(defaultValue = "Stephen Curry") String playerName) {
+        return aiService.summarizeRecentGamesWithMCP(playerName);
+    }
 }

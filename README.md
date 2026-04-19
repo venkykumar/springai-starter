@@ -8,19 +8,23 @@ It includes:
 - an AI-powered endpoint at `/ask`
 - an NBA structured-output endpoint at `/nba/player-profile`
 - an NBA chat endpoint with conversation memory at `/nba/chat`
+- an MCP-backed recent-games endpoint at `/nba/mcp/recent-games-summary`
+- a local MCP server endpoint at `/mcp`
 - a small browser UI served from the app itself
 - example tests for the controllers
 
 ## Showcase Features
 
-This project currently highlights four Spring AI features in a simple, demo-friendly way:
+This project currently highlights five Spring AI features in a simple, demo-friendly way:
 
 - `Guided chat responses` through `/ask`
 - `Structured output` through `/nba/player-profile`
 - `Conversation memory` through `/nba/chat`
 - `Tool calling` through `/nba/chat` and `NBATools`
+- `MCP server + client integration` through `/mcp`, `NBAMcpTools`, and `/nba/mcp/recent-games-summary`
 
 The NBA chat flow now also demonstrates `tool calling` by letting Spring AI use a local Java tool for stable NBA player facts.
+The MCP flow demonstrates a different pattern: the app exposes a local MCP server, then calls that server back through an MCP client to fetch recent-game data before summarizing it.
 
 ## What Is Spring AI?
 
@@ -118,6 +122,41 @@ Example JSON response:
 }
 ```
 
+### `GET /nba/mcp/recent-games-summary`
+
+Demonstrates local MCP integration with an NBA-focused use case. The app calls its own local MCP server, runs the `get_recent_games_summary` tool through an MCP client, and then returns a typed JSON response with both the MCP data and a short summary.
+
+Example:
+
+```bash
+curl "http://localhost:8080/nba/mcp/recent-games-summary?playerName=Stephen%20Curry"
+```
+
+Example JSON response:
+
+```json
+{
+  "playerName": "Stephen Curry",
+  "source": "local-mcp-server",
+  "toolName": "get_recent_games_summary",
+  "recentGames": [
+    "2026-04-17 vs Lakers: 31 points, 5 rebounds, 8 assists in a 118-109 win.",
+    "2026-04-14 vs Clippers: 27 points, 4 rebounds, 6 assists in a 111-115 loss.",
+    "2026-04-11 vs Suns: 36 points, 6 rebounds, 7 assists in a 122-116 win."
+  ],
+  "summary": "Stephen Curry has been scoring at a high level while continuing to create offense for others."
+}
+```
+
+### `POST /mcp` and `GET /mcp`
+
+The application also exposes a local MCP server at `/mcp` using Spring AI's streamable HTTP server support.
+
+This server currently exposes two demo tools:
+
+- `get_recent_games_summary`
+- `list_supported_players`
+
 ### Browser UI
 
 Open:
@@ -149,6 +188,7 @@ Once the app starts, try:
 - `http://localhost:8080/ask?message=What%20is%20Spring%20AI`
 - `http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry`
 - `http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell%20me%20about%20Stephen%20Curry`
+- `http://localhost:8080/nba/mcp/recent-games-summary?playerName=Stephen%20Curry`
 
 ## AI Configuration
 
@@ -166,7 +206,7 @@ spring.ai.model.chat=${SPRING_AI_MODEL_CHAT:none}
 spring.ai.openai.api-key=${OPENAI_API_KEY:}
 ```
 
-If `SPRING_AI_MODEL_CHAT` is not set to `openai`, or if `OPENAI_API_KEY` is missing, `/ask` will return a friendly configuration message.
+If `SPRING_AI_MODEL_CHAT` is not set to `openai`, or if `OPENAI_API_KEY` is missing, the AI-backed endpoints return a friendly configuration message instead of failing hard.
 
 ## Run Tests
 
@@ -205,6 +245,14 @@ The second NBA chat request reuses the same `conversationId`, so Spring AI can k
 curl "http://localhost:8080/nba/chat?conversationId=tool-demo&message=Use%20the%20tool%20and%20give%20me%20quick%20facts%20about%20Nikola%20Jokic"
 ```
 
+### 5. MCP-backed recent games summary
+
+```bash
+curl "http://localhost:8080/nba/mcp/recent-games-summary?playerName=Stephen%20Curry"
+```
+
+This route demonstrates a local MCP server and client working together: the app fetches recent-game data through MCP first, then summarizes it into a clean JSON response.
+
 ## Project Structure
 
 ```text
@@ -214,7 +262,10 @@ src/main/java/com/example/helloworld/
 ├── HelloController.java
 ├── HelloWorldApplication.java
 ├── NBAChatResponse.java
+├── NBAMcpRecentGamesResponse.java
+├── NBAMcpTools.java
 ├── NBAPlayerProfile.java
+├── McpServerConfiguration.java
 ├── NBATools.java
 └── SpringAIService.java
 ```
@@ -228,19 +279,24 @@ flowchart LR
     B --> D[AIController<br>/ask]
     B --> I[AIController<br>/nba/player-profile]
     B --> J[AIController<br>/nba/chat]
+    B --> O[AIController<br>/nba/mcp/recent-games-summary]
     D --> E[AIService]
     I --> E
     J --> E
+    O --> E
     E --> F[SpringAIService]
     F --> K[MessageChatMemoryAdvisor]
     K --> L[In-memory chat memory]
     F --> M[NBATools]
     M --> N[Local player facts]
+    F --> P[MCP Sync Client]
+    P --> Q[Local MCP server<br>/mcp]
+    Q --> R[NBAMcpTools]
     F --> G[Spring AI ChatClient]
     G --> H[OpenAI API]
 ```
 
-The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-profile`, and `/nba/chat` flow through the service layer into Spring AI and then out to OpenAI. The NBA chat endpoint also stores short conversation history in memory and can call a local NBA tool for stable player facts.
+The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-profile`, `/nba/chat`, and `/nba/mcp/recent-games-summary` flow through the service layer. The NBA chat endpoint stores short conversation history in memory and can call a local NBA tool for stable player facts. The MCP endpoint shows a separate path where the app talks to its own local MCP server over the MCP protocol before summarizing the returned data.
 
 ## How It Works
 
@@ -248,10 +304,14 @@ The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-
 - `AIController` accepts user prompts through `/ask`.
 - `AIController` also exposes `/nba/player-profile` for the structured-output demo.
 - `AIController` exposes `/nba/chat` for the memory-based NBA conversation demo.
+- `AIController` exposes `/nba/mcp/recent-games-summary` for the MCP demo.
 - `AIService` defines the abstraction for AI responses.
 - `SpringAIService` checks configuration, applies guided prompts, and uses Spring AI's `ChatClient` to call OpenAI.
 - `MessageChatMemoryAdvisor` stores recent NBA conversation context by `conversationId`.
 - `NBATools` exposes a small Java tool so the NBA chat flow can demonstrate Spring AI tool calling.
+- `NBAMcpTools` exposes MCP tools through Spring AI's MCP server starter.
+- `McpServerConfiguration` registers the local MCP tools with the MCP server.
+- `NBAMcpRecentGamesResponse` keeps the MCP endpoint response aligned with the other typed API responses in the app.
 - `NBAChatResponse` returns the conversation ID and the assistant reply for the chat-memory endpoint.
 - `NBAPlayerProfile` is a Java record used to demonstrate structured output mapping.
 - `src/main/resources/static/index.html` provides the built-in landing page.
