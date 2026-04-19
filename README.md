@@ -1,48 +1,146 @@
-# springai-starter
+# Spring AI Starter
 
-This project is a small starting point for learning Spring Boot and Spring AI.
+A concise starter project for building a Spring Boot application with Spring AI and OpenAI.
 
-## What it does
+It includes:
 
-- Starts a Spring Boot web app
-- Exposes `GET /hello`
-- Returns `Hello, world!`
-- Exposes `GET /ask`
-- Sends your prompt to an OpenAI model through Spring AI
+- a basic REST endpoint at `/hello`
+- an AI-powered endpoint at `/ask`
+- a small browser UI served from the app itself
+- example tests for the controllers
 
-## Run it
+## What Is Spring AI?
+
+Spring AI is a Spring ecosystem project that helps Java developers add AI capabilities to Spring applications using familiar patterns such as dependency injection, configuration properties, and service-oriented design.
+
+Instead of wiring low-level model API calls by hand, you can use Spring-style abstractions to send prompts, receive responses, and integrate AI features into the rest of your application more cleanly.
+
+## Benefits of Spring AI
+
+- It fits naturally into Spring Boot applications and conventions.
+- It reduces boilerplate when calling AI models.
+- It keeps configuration manageable through standard Spring properties and environment variables.
+- It makes it easier to swap or extend model integrations as your app grows.
+- It lets you build AI-backed features without leaving the Spring programming model you already know.
+
+## Tech Stack
+
+- Java 25
+- Spring Boot 3.5
+- Spring AI 1.1
+- Maven
+- OpenAI via `spring-ai-starter-model-openai`
+
+## What the App Does
+
+### `GET /hello`
+
+Returns a plain text greeting:
+
+```text
+Hello, world!
+```
+
+### `GET /ask`
+
+Accepts a `message` query parameter and sends it to the configured OpenAI chat model through Spring AI.
+
+Example:
+
+```bash
+curl "http://localhost:8080/ask?message=Tell%20me%20a%20short%20joke%20about%20Java"
+```
+
+If AI is not configured, the app returns a helpful setup message instead of failing hard.
+
+### Browser UI
+
+Open:
+
+```text
+http://localhost:8080
+```
+
+The home page provides a lightweight interface for trying the app in the browser.
+
+## Getting Started
+
+### Prerequisites
+
+- Java 25
+- Maven 3.9+
+- An OpenAI API key if you want to use `/ask`
+
+### Run Locally
 
 ```bash
 mvn spring-boot:run
 ```
 
-Then open:
+Once the app starts, try:
 
+- `http://localhost:8080`
 - `http://localhost:8080/hello`
 - `http://localhost:8080/ask?message=What%20is%20Spring%20AI`
 
-## Configure your API key
+## AI Configuration
 
-Set your OpenAI API key before starting the app:
+Set these environment variables before starting the app:
 
 ```bash
-export OPENAI_API_KEY=your_api_key_here
 export SPRING_AI_MODEL_CHAT=openai
+export OPENAI_API_KEY=your_api_key_here
 ```
 
-The app reads these values through:
+The application reads them from:
 
-- `spring.ai.model.chat=${SPRING_AI_MODEL_CHAT:none}`
-- `spring.ai.openai.api-key=${OPENAI_API_KEY:}`
+```properties
+spring.ai.model.chat=${SPRING_AI_MODEL_CHAT:none}
+spring.ai.openai.api-key=${OPENAI_API_KEY:}
+```
 
-## Run tests
+If `SPRING_AI_MODEL_CHAT` is not set to `openai`, or if `OPENAI_API_KEY` is missing, `/ask` will return a friendly configuration message.
+
+## Run Tests
 
 ```bash
 mvn test
 ```
 
-## How it is wired
+## Project Structure
 
-- `HelloController` handles the basic `/hello` endpoint
-- `AiController` handles the `/ask` endpoint
-- `SpringAiService` uses Spring AI's `ChatClient` to call the model
+```text
+src/main/java/com/example/helloworld/
+├── AiController.java
+├── AiService.java
+├── HelloController.java
+├── HelloWorldApplication.java
+└── SpringAiService.java
+```
+
+## How It Works
+
+- `HelloController` serves the `/hello` endpoint.
+- `AiController` accepts user prompts through `/ask`.
+- `AiService` defines the abstraction for AI responses.
+- `SpringAiService` checks configuration and uses Spring AI's `ChatClient` to call OpenAI.
+- `src/main/resources/static/index.html` provides the built-in landing page.
+
+## Example Requests
+
+```bash
+curl http://localhost:8080/hello
+```
+
+```bash
+curl "http://localhost:8080/ask?message=Explain%20dependency%20injection%20in%20one%20sentence"
+```
+
+## Why This Project Is Useful
+
+This repo is a good starting point if you want to:
+
+- learn the basics of Spring Boot REST controllers
+- see a minimal Spring AI integration
+- experiment with OpenAI from a Java application
+- build on top of a small, understandable starter codebase
