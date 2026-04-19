@@ -118,6 +118,21 @@ src/main/java/com/example/helloworld/
 └── SpringAiService.java
 ```
 
+## Architecture Overview
+
+```mermaid
+flowchart LR
+    A[Browser or curl] --> B[Spring Boot App]
+    B --> C[HelloController<br>/hello]
+    B --> D[AiController<br>/ask]
+    D --> E[AiService]
+    E --> F[SpringAiService]
+    F --> G[Spring AI ChatClient]
+    G --> H[OpenAI API]
+```
+
+The `/hello` request is handled directly by the app, while `/ask` flows through the service layer into Spring AI and then out to OpenAI.
+
 ## How It Works
 
 - `HelloController` serves the `/hello` endpoint.
