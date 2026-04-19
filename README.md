@@ -13,11 +13,14 @@ It includes:
 
 ## Showcase Features
 
-This project currently highlights three Spring AI features in a simple, demo-friendly way:
+This project currently highlights four Spring AI features in a simple, demo-friendly way:
 
 - `Guided chat responses` through `/ask`
 - `Structured output` through `/nba/player-profile`
 - `Conversation memory` through `/nba/chat`
+- `Tool calling` through `/nba/chat` and `NBATools`
+
+The NBA chat flow now also demonstrates `tool calling` by letting Spring AI use a local Java tool for stable NBA player facts.
 
 ## What Is Spring AI?
 
@@ -90,6 +93,7 @@ Example JSON response:
 ### `GET /nba/chat`
 
 Demonstrates Spring AI chat memory with an NBA-focused conversation. Pass the same `conversationId` across requests and the assistant can use earlier messages as context for follow-up questions.
+This flow also has access to a small local NBA tool for quick player facts, which makes it a simple example of Spring AI tool calling.
 
 Examples:
 
@@ -99,6 +103,10 @@ curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell
 
 ```bash
 curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=What%20are%20his%20biggest%20strengths%3F"
+```
+
+```bash
+curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Use%20the%20tool%20and%20give%20me%20quick%20facts%20about%20LeBron%20James"
 ```
 
 Example JSON response:
@@ -191,6 +199,12 @@ curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=What
 
 The second NBA chat request reuses the same `conversationId`, so Spring AI can keep the conversation context in memory.
 
+### 4. NBA tool calling
+
+```bash
+curl "http://localhost:8080/nba/chat?conversationId=tool-demo&message=Use%20the%20tool%20and%20give%20me%20quick%20facts%20about%20Nikola%20Jokic"
+```
+
 ## Project Structure
 
 ```text
@@ -201,6 +215,7 @@ src/main/java/com/example/helloworld/
 ├── HelloWorldApplication.java
 ├── NBAChatResponse.java
 ├── NBAPlayerProfile.java
+├── NBATools.java
 └── SpringAIService.java
 ```
 
@@ -219,11 +234,13 @@ flowchart LR
     E --> F[SpringAIService]
     F --> K[MessageChatMemoryAdvisor]
     K --> L[In-memory chat memory]
+    F --> M[NBATools]
+    M --> N[Local player facts]
     F --> G[Spring AI ChatClient]
     G --> H[OpenAI API]
 ```
 
-The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-profile`, and `/nba/chat` flow through the service layer into Spring AI and then out to OpenAI. The NBA chat endpoint also stores short conversation history in memory for follow-up questions.
+The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-profile`, and `/nba/chat` flow through the service layer into Spring AI and then out to OpenAI. The NBA chat endpoint also stores short conversation history in memory and can call a local NBA tool for stable player facts.
 
 ## How It Works
 
@@ -234,6 +251,7 @@ The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-
 - `AIService` defines the abstraction for AI responses.
 - `SpringAIService` checks configuration, applies guided prompts, and uses Spring AI's `ChatClient` to call OpenAI.
 - `MessageChatMemoryAdvisor` stores recent NBA conversation context by `conversationId`.
+- `NBATools` exposes a small Java tool so the NBA chat flow can demonstrate Spring AI tool calling.
 - `NBAChatResponse` returns the conversation ID and the assistant reply for the chat-memory endpoint.
 - `NBAPlayerProfile` is a Java record used to demonstrate structured output mapping.
 - `src/main/resources/static/index.html` provides the built-in landing page.
@@ -258,6 +276,10 @@ curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell
 
 ```bash
 curl "http://localhost:8080/nba/chat?conversationId=warriors-thread&message=What%20are%20his%20biggest%20strengths%3F"
+```
+
+```bash
+curl "http://localhost:8080/nba/chat?conversationId=tool-demo&message=Use%20the%20tool%20and%20give%20me%20quick%20facts%20about%20LeBron%20James"
 ```
 
 ## Why This Project Is Useful
