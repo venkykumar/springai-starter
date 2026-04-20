@@ -1,8 +1,10 @@
 package com.example.springaistarter;
 
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 
 @RestController
 public class AIController {
@@ -18,6 +20,21 @@ public class AIController {
             @RequestParam(defaultValue = "Tell me a short joke about Java.") String message,
             @RequestParam(required = false) String model) {
         return aiService.ask(message, model);
+    }
+
+    @GetMapping(value = "/ask/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> askStream(
+            @RequestParam(defaultValue = "Tell me a short joke about Java.") String message,
+            @RequestParam(required = false) String model) {
+        return aiService.streamAsk(message, model);
+    }
+
+    @GetMapping("/vision/describe")
+    public String describeImage(
+            @RequestParam String imageUrl,
+            @RequestParam(defaultValue = "Describe this image in detail.") String prompt,
+            @RequestParam(required = false) String model) {
+        return aiService.describeImage(imageUrl, prompt, model);
     }
 
     @GetMapping("/nba/player-profile")

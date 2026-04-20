@@ -1,5 +1,6 @@
 package com.example.springaistarter;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,9 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MimeType;
+import org.springframework.util.MimeTypeUtils;
+import reactor.core.publisher.Flux;
 
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -64,6 +68,27 @@ public class SpringAIService implements AIService {
                         """)
                 .user(message)
                 .call()
+                .content();
+    }
+
+    @Override
+    public Flux<String> streamAsk(String message, String model) {
+        String resolvedModel = resolveModel(model);
+        String configError = getConfigurationError(resolvedModel);
+        if (configError != null) {
+            return Flux.just(configError);
+        }
+
+        return createChatClient(resolvedModel).prompt()
+                .system("""
+                        You are a helpful Java, Spring Boot, and Spring AI assistant.
+                        Give concise, accurate answers for developers.
+                        Prefer practical explanations over vague summaries.
+                        If the user asks about Spring AI, explain it as the Spring project for integrating AI models and workflows into Spring applications.
+                        Do not mention knowledge cutoffs or speculate about hidden context.
+                        """)
+                .user(message)
+                .stream()
                 .content();
     }
 
@@ -193,6 +218,36 @@ public class SpringAIService implements AIService {
                 .content();
 
         return new NBARagResponse(question, answer, retrievedChunks);
+    }
+
+    @Override
+    public String describeImage(String imageUrl, String prompt, String model) {
+        String resolvedModel = resolveModel(model);
+        String configError = getConfigurationError(resolvedModel);
+        if (configError != null) {
+            return configError;
+        }
+
+        String effectivePrompt = (prompt == null || prompt.isBlank()) ? "Describe this image in detail." : prompt;
+        MimeType mimeType = detectMimeType(imageUrl);
+
+        try {
+            URL url = new URL(imageUrl);
+            return createChatClient(resolvedModel).prompt()
+                    .user(u -> u.text(effectivePrompt).media(mimeType, url))
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            return "Could not process image: " + e.getMessage();
+        }
+    }
+
+    private MimeType detectMimeType(String url) {
+        String lower = url.toLowerCase();
+        if (lower.contains(".png")) return MimeTypeUtils.IMAGE_PNG;
+        if (lower.contains(".gif")) return MimeTypeUtils.IMAGE_GIF;
+        if (lower.contains(".webp")) return MimeType.valueOf("image/webp");
+        return MimeTypeUtils.IMAGE_JPEG;
     }
 
     private String resolveModel(String requested) {

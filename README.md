@@ -6,6 +6,7 @@ It includes:
 
 - a basic REST endpoint at `/hello`
 - an AI-powered endpoint at `/ask`
+- a streaming endpoint at `/ask/stream` (SSE, token-by-token)
 - an NBA structured-output endpoint at `/nba/player-profile`
 - an NBA chat endpoint with conversation memory at `/nba/chat`
 - an MCP-backed recent-games endpoint at `/nba/mcp/recent-games-summary`
@@ -16,9 +17,10 @@ It includes:
 
 ## Showcase Features
 
-This project currently highlights six Spring AI features in a simple, demo-friendly way:
+This project currently highlights seven Spring AI features in a simple, demo-friendly way:
 
 - `Guided chat responses` through `/ask`
+- `Streaming responses (SSE)` through `/ask/stream`
 - `Structured output` through `/nba/player-profile`
 - `Conversation memory` through `/nba/chat`
 - `Tool calling` through `/nba/chat` and `NBATools`
@@ -73,6 +75,18 @@ curl "http://localhost:8080/ask?message=Tell%20me%20a%20short%20joke%20about%20J
 ```
 
 If AI is not configured, the app returns a helpful setup message instead of failing hard.
+
+### `GET /ask/stream`
+
+Same as `/ask` but streams the response token-by-token over SSE. The browser UI shows tokens appearing in real time as the model generates them.
+
+Example:
+
+```bash
+curl "http://localhost:8080/ask/stream?message=What%20is%20Spring%20AI"
+```
+
+The response is a stream of SSE events, each carrying one chunk of the model's output. Spring AI's `.stream().content()` returns a `Flux<String>` which Spring MVC serialises as `text/event-stream`.
 
 ### `GET /nba/player-profile`
 
@@ -214,6 +228,7 @@ Once the app starts, try:
 - `http://localhost:8080`
 - `http://localhost:8080/hello`
 - `http://localhost:8080/ask?message=What%20is%20Spring%20AI`
+- `http://localhost:8080/ask/stream?message=What%20is%20Spring%20AI`
 - `http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry`
 - `http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell%20me%20about%20Stephen%20Curry`
 - `http://localhost:8080/nba/mcp/recent-games-summary?playerName=Stephen%20Curry`
