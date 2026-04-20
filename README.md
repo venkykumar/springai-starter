@@ -334,6 +334,22 @@ curl "http://localhost:8080/nba/ask?question=Who+has+the+most+career+three-point
 
 The response includes both the grounded answer and the `retrievedChunks` the model was given, making the retrieval step visible.
 
+### 7. Streaming response
+
+```bash
+curl "http://localhost:8080/ask/stream?message=Explain+Spring+AI+in+plain+English"
+```
+
+Tokens stream back over SSE as the model generates them. Use the browser UI to see them appear in real time.
+
+### 8. Vision — image description
+
+```bash
+curl "http://localhost:8080/vision/describe?imageUrl=https://upload.wikimedia.org/wikipedia/commons/7/7f/Stephen_Curry_Shooting_%28cropped%29_%28cropped%29.jpg&prompt=Describe+the+shooting+form+shown"
+```
+
+Send any public image URL with a prompt. Works with both GPT-4o and Claude Sonnet.
+
 ## Project Structure
 
 ```text
@@ -357,16 +373,18 @@ src/main/java/com/example/helloworld/
 flowchart LR
     A[Browser or curl] --> B[Spring Boot App]
     B --> C[HelloController<br>/hello]
-    B --> D[AIController<br>/ask]
+    B --> D[AIController<br>/ask /ask/stream]
     B --> I[AIController<br>/nba/player-profile]
     B --> J[AIController<br>/nba/chat]
     B --> O[AIController<br>/nba/mcp/recent-games-summary]
     B --> S[AIController<br>/nba/ask]
+    B --> V[AIController<br>/vision/describe]
     D --> E[AIService]
     I --> E
     J --> E
     O --> E
     S --> E
+    V --> E
     E --> F[SpringAIService]
     F --> K[MessageChatMemoryAdvisor]
     K --> L[In-memory chat memory]
@@ -378,10 +396,10 @@ flowchart LR
     F --> T[SimpleVectorStore]
     T --> U[nba-knowledge-base.txt]
     F --> G[Spring AI ChatClient]
-    G --> H[OpenAI API]
+    G --> H[OpenAI / Anthropic API]
 ```
 
-The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-profile`, `/nba/chat`, and `/nba/mcp/recent-games-summary` flow through the service layer. The NBA chat endpoint stores short conversation history in memory and can call a local NBA tool for stable player facts. The MCP endpoint shows a separate path where the app talks to its own local MCP server over the MCP protocol before summarizing the returned data.
+All AI endpoints flow through `AIService` → `SpringAIService`. `/ask` returns a plain response; `/ask/stream` streams tokens via SSE using `Flux<String>`. `/vision/describe` sends an image URL alongside the prompt as a multimodal message. The NBA chat endpoint stores conversation history in memory and can autonomously call a local NBA tool (agentic tool-use loop). The MCP endpoint fetches game data through a local MCP server before summarising it. The RAG endpoint embeds the question, retrieves matching chunks from `SimpleVectorStore`, and passes them as context to the model.
 
 ## How It Works
 
