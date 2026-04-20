@@ -245,7 +245,7 @@ curl "http://localhost:8080/ask?message=What+is+Spring+AI&model=openai"
 
 The default model for each provider is `gpt-4o-mini` (OpenAI) and `claude-sonnet-4-5-20251001` (Anthropic), configurable in `application.properties`.
 
-> **RAG note:** `/nba/ask` always uses the OpenAI embedding model for vector similarity search regardless of which chat model is selected. If running with Anthropic, `OPENAI_API_KEY` is still required for the RAG endpoint.
+> **RAG note:** `/nba/ask` always uses the OpenAI embedding model for vector similarity search regardless of which chat model is selected. The retrieved chunks are identical whichever model you choose — only the final answer generation step differs. If running with Anthropic, `OPENAI_API_KEY` is still required for the RAG endpoint.
 
 If no model is configured or the matching API key is missing, AI endpoints return a friendly message instead of failing hard.
 
