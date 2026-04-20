@@ -5,9 +5,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -18,32 +22,39 @@ import io.modelcontextprotocol.spec.McpSchema;
 @Service
 public class SpringAIService implements AIService {
 
-    private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
+    private final ObjectProvider<OpenAiChatModel> openAiChatModelProvider;
+    private final ObjectProvider<AnthropicChatModel> anthropicChatModelProvider;
     private final ChatMemory chatMemory;
     private final NBATools nbaTools;
     private final List<McpSyncClient> mcpSyncClients;
+    private final ObjectProvider<VectorStore> vectorStoreProvider;
     private final Environment environment;
 
-    public SpringAIService(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider,
+    public SpringAIService(ObjectProvider<OpenAiChatModel> openAiChatModelProvider,
+            ObjectProvider<AnthropicChatModel> anthropicChatModelProvider,
             ChatMemory chatMemory,
             NBATools nbaTools,
             ObjectProvider<List<McpSyncClient>> mcpSyncClientsProvider,
+            ObjectProvider<VectorStore> vectorStoreProvider,
             Environment environment) {
-        this.chatClientBuilderProvider = chatClientBuilderProvider;
+        this.openAiChatModelProvider = openAiChatModelProvider;
+        this.anthropicChatModelProvider = anthropicChatModelProvider;
         this.chatMemory = chatMemory;
         this.nbaTools = nbaTools;
         this.mcpSyncClients = mcpSyncClientsProvider.getIfAvailable(ArrayList::new);
+        this.vectorStoreProvider = vectorStoreProvider;
         this.environment = environment;
     }
 
     @Override
-    public String ask(String message) {
-        String configurationError = getConfigurationError();
-        if (configurationError != null) {
-            return configurationError;
+    public String ask(String message, String model) {
+        String resolvedModel = resolveModel(model);
+        String configError = getConfigurationError(resolvedModel);
+        if (configError != null) {
+            return configError;
         }
 
-        return createChatClient().prompt()
+        return createChatClient(resolvedModel).prompt()
                 .system("""
                         You are a helpful Java, Spring Boot, and Spring AI assistant.
                         Give concise, accurate answers for developers.
@@ -57,19 +68,14 @@ public class SpringAIService implements AIService {
     }
 
     @Override
-    public NBAPlayerProfile generateNBAPlayerProfile(String playerName) {
-        String configurationError = getConfigurationError();
-        if (configurationError != null) {
-            return new NBAPlayerProfile(
-                    playerName,
-                    "Unavailable",
-                    "Unavailable",
-                    List.of(),
-                    "Unavailable",
-                    configurationError);
+    public NBAPlayerProfile generateNBAPlayerProfile(String playerName, String model) {
+        String resolvedModel = resolveModel(model);
+        String configError = getConfigurationError(resolvedModel);
+        if (configError != null) {
+            return new NBAPlayerProfile(playerName, "Unavailable", "Unavailable", List.of(), "Unavailable", configError);
         }
 
-        return createChatClient().prompt()
+        return createChatClient(resolvedModel).prompt()
                 .user(user -> user
                         .text("""
                                 Create a concise NBA player profile for {playerName}.
@@ -83,14 +89,15 @@ public class SpringAIService implements AIService {
     }
 
     @Override
-    public NBAChatResponse chatAboutNBA(String conversationId, String message) {
+    public NBAChatResponse chatAboutNBA(String conversationId, String message, String model) {
         String normalizedConversationId = normalizeConversationId(conversationId);
-        String configurationError = getConfigurationError();
-        if (configurationError != null) {
-            return new NBAChatResponse(normalizedConversationId, configurationError);
+        String resolvedModel = resolveModel(model);
+        String configError = getConfigurationError(resolvedModel);
+        if (configError != null) {
+            return new NBAChatResponse(normalizedConversationId, configError);
         }
 
-        String answer = createChatClient().prompt()
+        String answer = createChatClient(resolvedModel).prompt()
                 .advisors(advisorSpec -> advisorSpec
                         .advisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                         .param(ChatMemory.CONVERSATION_ID, normalizedConversationId))
@@ -110,22 +117,18 @@ public class SpringAIService implements AIService {
     }
 
     @Override
-    public NBAMCPRecentGamesResponse summarizeRecentGamesWithMCP(String playerName) {
+    public NBAMCPRecentGamesResponse summarizeRecentGamesWithMCP(String playerName, String model) {
         String normalizedPlayerName = normalizePlayerName(playerName);
         String recentGamesText = fetchRecentGamesFromMCP(normalizedPlayerName);
         List<String> recentGames = extractRecentGames(recentGamesText);
 
-        String configurationError = getConfigurationError();
-        if (configurationError != null) {
-            return new NBAMCPRecentGamesResponse(
-                    normalizedPlayerName,
-                    "local-mcp-server",
-                    "get_recent_games_summary",
-                    recentGames,
-                    configurationError);
+        String resolvedModel = resolveModel(model);
+        String configError = getConfigurationError(resolvedModel);
+        if (configError != null) {
+            return new NBAMCPRecentGamesResponse(normalizedPlayerName, "local-mcp-server", "get_recent_games_summary", recentGames, configError);
         }
 
-        String summary = createChatClient().prompt()
+        String summary = createChatClient(resolvedModel).prompt()
                 .system("""
                         You are summarizing recent NBA game data that was fetched through a local MCP server.
                         Write a short, clear recap in 2-3 sentences.
@@ -145,35 +148,88 @@ public class SpringAIService implements AIService {
                 .call()
                 .content();
 
-        return new NBAMCPRecentGamesResponse(
-                normalizedPlayerName,
-                "local-mcp-server",
-                "get_recent_games_summary",
-                recentGames,
-                summary);
+        return new NBAMCPRecentGamesResponse(normalizedPlayerName, "local-mcp-server", "get_recent_games_summary", recentGames, summary);
     }
 
-    private ChatClient createChatClient() {
-        ChatClient.Builder chatClientBuilder = chatClientBuilderProvider.getIfAvailable();
-        if (chatClientBuilder == null) {
-            throw new IllegalStateException("Spring AI chat client is not available. Check your Spring AI configuration.");
+    @Override
+    public NBARagResponse askWithRAG(String question, String model) {
+        String resolvedModel = resolveModel(model);
+        String configError = getConfigurationError(resolvedModel);
+        if (configError != null) {
+            return new NBARagResponse(question, configError, List.of());
         }
 
-        return chatClientBuilder.build();
+        VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
+        if (vectorStore == null) {
+            return new NBARagResponse(question,
+                    "Vector store not available. Ensure OPENAI_API_KEY is set and the embedding model is enabled.",
+                    List.of());
+        }
+
+        List<Document> relevantDocs = vectorStore.similaritySearch(question);
+        List<String> retrievedChunks = relevantDocs.stream()
+                .map(Document::getText)
+                .toList();
+
+        String context = String.join("\n\n", retrievedChunks);
+
+        String answer = createChatClient(resolvedModel).prompt()
+                .system("""
+                        You are an NBA knowledge assistant.
+                        Answer the user's question using ONLY the context provided below.
+                        If the answer cannot be found in the context, say "I don't have that information in my knowledge base."
+                        Do not use any outside knowledge beyond what is provided.
+                        """)
+                .user(user -> user
+                        .text("""
+                                Context:
+                                {context}
+
+                                Question: {question}
+                                """)
+                        .param("context", context.isBlank() ? "No relevant context found." : context)
+                        .param("question", question))
+                .call()
+                .content();
+
+        return new NBARagResponse(question, answer, retrievedChunks);
     }
 
-    private String getConfigurationError() {
-        String chatModel = environment.getProperty("spring.ai.model.chat", "none");
-        if (!"openai".equalsIgnoreCase(chatModel)) {
-            return "Enable Spring AI by setting SPRING_AI_MODEL_CHAT=openai and OPENAI_API_KEY.";
+    private String resolveModel(String requested) {
+        if (requested != null && !requested.isBlank()) {
+            return requested.trim().toLowerCase();
         }
+        return environment.getProperty("spring.ai.model.chat", "none").toLowerCase();
+    }
 
-        String apiKey = environment.getProperty("spring.ai.openai.api-key");
-        if (apiKey == null || apiKey.isBlank()) {
-            return "Set OPENAI_API_KEY before calling AI endpoints.";
-        }
+    private String getConfigurationError(String resolvedModel) {
+        return switch (resolvedModel) {
+            case "openai" -> {
+                String key = environment.getProperty("spring.ai.openai.api-key");
+                yield (key == null || key.isBlank()) ? "Set OPENAI_API_KEY before calling AI endpoints." : null;
+            }
+            case "anthropic" -> {
+                String key = environment.getProperty("spring.ai.anthropic.api-key");
+                yield (key == null || key.isBlank()) ? "Set ANTHROPIC_API_KEY before calling AI endpoints." : null;
+            }
+            default -> "Set SPRING_AI_MODEL_CHAT=openai or SPRING_AI_MODEL_CHAT=anthropic, along with the corresponding API key.";
+        };
+    }
 
-        return null;
+    private ChatClient createChatClient(String resolvedModel) {
+        return switch (resolvedModel) {
+            case "openai" -> {
+                OpenAiChatModel m = openAiChatModelProvider.getIfAvailable();
+                if (m == null) throw new IllegalStateException("OpenAI model not configured. Set OPENAI_API_KEY.");
+                yield ChatClient.builder(m).build();
+            }
+            case "anthropic" -> {
+                AnthropicChatModel m = anthropicChatModelProvider.getIfAvailable();
+                if (m == null) throw new IllegalStateException("Anthropic model not configured. Set ANTHROPIC_API_KEY.");
+                yield ChatClient.builder(m).build();
+            }
+            default -> throw new IllegalStateException("Unsupported model: " + resolvedModel);
+        };
     }
 
     private String normalizeConversationId(String conversationId) {

@@ -132,6 +132,24 @@
             white-space: nowrap;
         }
 
+        .model-pill-openai {
+            background: rgba(125, 249, 208, 0.12);
+            border-color: rgba(125, 249, 208, 0.25);
+            color: var(--accent);
+        }
+
+        .model-pill-anthropic {
+            background: rgba(255, 184, 108, 0.12);
+            border-color: rgba(255, 184, 108, 0.25);
+            color: var(--accent-warm);
+        }
+
+        .model-pill-none {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: var(--muted);
+        }
+
         .tab-row {
             display: flex;
             flex-wrap: wrap;
@@ -397,6 +415,50 @@
 
         .mcp-arrow { color: var(--muted); }
 
+        .model-switcher {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.25rem;
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.015);
+            flex-wrap: wrap;
+        }
+
+        .model-switcher-label {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-right: 0.25rem;
+        }
+
+        .model-btn {
+            appearance: none;
+            border-radius: 999px;
+            padding: 0.35rem 0.8rem;
+            font: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--muted);
+            transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+        }
+
+        .model-btn:hover { transform: translateY(-1px); }
+
+        .model-btn.active-openai {
+            color: #031018;
+            border-color: rgba(125, 249, 208, 0.4);
+            background: linear-gradient(135deg, rgba(125, 249, 208, 0.9), rgba(143, 203, 255, 0.85));
+        }
+
+        .model-btn.active-anthropic {
+            color: #1a0a00;
+            border-color: rgba(255, 184, 108, 0.4);
+            background: linear-gradient(135deg, rgba(255, 184, 108, 0.9), rgba(255, 210, 140, 0.85));
+        }
+
         .mcp-response { display: grid; gap: 0.85rem; }
 
         .mcp-meta {
@@ -490,7 +552,16 @@
                     <strong>Live Playground</strong>
                     <div class="helper-text">Choose an endpoint, load a sample, and see the real response.</div>
                 </div>
-                <div class="status-pill" id="status-pill">Ready</div>
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                    <div class="status-pill" id="model-pill" title="Set SPRING_AI_MODEL_CHAT=openai or =anthropic">model: detecting…</div>
+                    <div class="status-pill" id="status-pill">Ready</div>
+                </div>
+            </div>
+
+            <div class="model-switcher" role="group" aria-label="Model selection">
+                <span class="model-switcher-label">Model:</span>
+                <button class="model-btn active-openai" type="button" data-model="openai">OpenAI</button>
+                <button class="model-btn" type="button" data-model="anthropic">Claude</button>
             </div>
 
             <div class="tab-row" role="tablist" aria-label="Endpoints">
@@ -498,6 +569,7 @@
                 <button class="tab-button" type="button" data-endpoint="player-profile">/nba/player-profile</button>
                 <button class="tab-button" type="button" data-endpoint="nba-chat">/nba/chat</button>
                 <button class="tab-button" type="button" data-endpoint="mcp-recent-games">/nba/mcp/recent-games-summary</button>
+                <button class="tab-button" type="button" data-endpoint="nba-rag">/nba/ask</button>
             </div>
 
             <div class="workspace-body">
@@ -516,6 +588,17 @@
                         <span class="mcp-step">NBAMCPTools</span>
                         <span class="mcp-arrow">→</span>
                         <span class="mcp-step">AI Summary</span>
+                    </div>
+                    <div class="mcp-flow hidden" id="rag-flow">
+                        <span class="mcp-step">Question</span>
+                        <span class="mcp-arrow">→</span>
+                        <span class="mcp-step">Embed</span>
+                        <span class="mcp-arrow">→</span>
+                        <span class="mcp-step">Vector Search</span>
+                        <span class="mcp-arrow">→</span>
+                        <span class="mcp-step">Context Chunks</span>
+                        <span class="mcp-arrow">→</span>
+                        <span class="mcp-step">AI Answer</span>
                     </div>
                 </div>
 
@@ -551,9 +634,9 @@
             <header>
                 <div>
                     <strong>Endpoints at a Glance</strong>
-                    <div class="helper-text">A compact summary of what each route is for.</div>
+                    <div class="helper-text">Switch models with <code style="font-size:0.82rem;color:var(--accent)">SPRING_AI_MODEL_CHAT=openai</code> or <code style="font-size:0.82rem;color:var(--accent-warm)">SPRING_AI_MODEL_CHAT=anthropic</code>.</div>
                 </div>
-                <div class="status-pill">6 routes</div>
+                <div class="status-pill">7 routes</div>
             </header>
 
             <div class="endpoint-items">
@@ -571,7 +654,7 @@
                         <strong>/ask</strong>
                         <span class="endpoint-tag">Guided prompt</span>
                     </div>
-                    <p>General Spring and Java Q&amp;A with a focused system prompt.</p>
+                    <p>General Spring and Java Q&amp;A with a focused system prompt. Backed by whichever model is active — OpenAI or Anthropic Claude.</p>
                     <pre class="code-line">curl "http://localhost:8080/ask?message=What%20is%20Spring%20AI"</pre>
                 </article>
 
@@ -600,6 +683,15 @@
                     </div>
                     <p>Fetch recent-game data through the local MCP server, then return a typed JSON summary for the selected NBA player.</p>
                     <pre class="code-line">curl "http://localhost:8080/nba/mcp/recent-games-summary?playerName=Stephen%20Curry"</pre>
+                </article>
+
+                <article class="endpoint-item">
+                    <div class="endpoint-topline">
+                        <strong>/nba/ask</strong>
+                        <span class="endpoint-tag">RAG</span>
+                    </div>
+                    <p>Ask a question answered from a curated NBA knowledge base. Uses vector similarity search to retrieve relevant context chunks, then passes them to the model to generate a grounded answer.</p>
+                    <pre class="code-line">curl "http://localhost:8080/nba/ask?question=Who+has+the+most+career+three-pointers"</pre>
                 </article>
 
                 <article class="endpoint-item">
@@ -633,8 +725,8 @@
             buildRequest() {
                 const message = promptInput.value.trim() || "What is Spring AI?";
                 return {
-                    preview: `GET /ask?message=${encodeURIComponent(message)}`,
-                    url: `/ask?message=${encodeURIComponent(message)}`
+                    preview: `GET /ask?message=${encodeURIComponent(message)}&model=${selectedModel}`,
+                    url: `/ask?message=${encodeURIComponent(message)}&model=${selectedModel}`
                 };
             }
         },
@@ -654,8 +746,8 @@
             buildRequest() {
                 const playerName = promptInput.value.trim() || "Stephen Curry";
                 return {
-                    preview: `GET /nba/player-profile?playerName=${encodeURIComponent(playerName)}`,
-                    url: `/nba/player-profile?playerName=${encodeURIComponent(playerName)}`
+                    preview: `GET /nba/player-profile?playerName=${encodeURIComponent(playerName)}&model=${selectedModel}`,
+                    url: `/nba/player-profile?playerName=${encodeURIComponent(playerName)}&model=${selectedModel}`
                 };
             }
         },
@@ -676,8 +768,8 @@
                 const message = promptInput.value.trim() || "Tell me about Stephen Curry.";
                 const conversationId = conversationInput.value.trim() || "warriors-thread";
                 return {
-                    preview: `GET /nba/chat?conversationId=${encodeURIComponent(conversationId)}&message=${encodeURIComponent(message)}`,
-                    url: `/nba/chat?conversationId=${encodeURIComponent(conversationId)}&message=${encodeURIComponent(message)}`
+                    preview: `GET /nba/chat?conversationId=${encodeURIComponent(conversationId)}&message=${encodeURIComponent(message)}&model=${selectedModel}`,
+                    url: `/nba/chat?conversationId=${encodeURIComponent(conversationId)}&message=${encodeURIComponent(message)}&model=${selectedModel}`
                 };
             }
         },
@@ -697,8 +789,29 @@
             buildRequest() {
                 const playerName = promptInput.value.trim() || "Stephen Curry";
                 return {
-                    preview: `GET /nba/mcp/recent-games-summary?playerName=${encodeURIComponent(playerName)}`,
-                    url: `/nba/mcp/recent-games-summary?playerName=${encodeURIComponent(playerName)}`
+                    preview: `GET /nba/mcp/recent-games-summary?playerName=${encodeURIComponent(playerName)}&model=${selectedModel}`,
+                    url: `/nba/mcp/recent-games-summary?playerName=${encodeURIComponent(playerName)}&model=${selectedModel}`
+                };
+            }
+        },
+        "nba-rag": {
+            title: "NBA Knowledge Base (RAG)",
+            route: "GET /nba/ask?question=...",
+            description: "Ask any NBA question. The app embeds your question, searches a vector store of NBA facts, and passes the most relevant chunks to the model as context.",
+            placeholder: "Try: Who holds the record for most career three-pointers?",
+            label: "Question",
+            usesConversation: false,
+            features: ["RAG", "Vector search", "Grounded answers"],
+            samples: [
+                "Who holds the NBA record for most career three-pointers?",
+                "Which team has won the most NBA championships?",
+                "When did LeBron James break the all-time scoring record?"
+            ],
+            buildRequest() {
+                const question = promptInput.value.trim() || "Who holds the NBA record for most career three-pointers?";
+                return {
+                    preview: `GET /nba/ask?question=${encodeURIComponent(question)}&model=${selectedModel}`,
+                    url: `/nba/ask?question=${encodeURIComponent(question)}&model=${selectedModel}`
                 };
             }
         }
@@ -722,6 +835,7 @@
     const statusNote = document.getElementById("status-note");
 
     let activeEndpoint = "ask";
+    let selectedModel = "openai";
 
     function setBusy(isBusy) {
         runButton.disabled = isBusy;
@@ -769,6 +883,7 @@
             featureList.appendChild(pill);
         });
         document.getElementById("mcp-flow").classList.toggle("hidden", activeEndpoint !== "mcp-recent-games");
+        document.getElementById("rag-flow").classList.toggle("hidden", activeEndpoint !== "nba-rag");
         renderSamples(activeEndpoint);
         updateRequestPreview();
     }
@@ -797,6 +912,14 @@
                 } catch {
                     responseView.textContent = payload;
                 }
+            } else if (activeEndpoint === "nba-rag") {
+                try {
+                    const parsed = JSON.parse(payload);
+                    responseView.innerHTML = "";
+                    responseView.appendChild(renderRagResponse(parsed));
+                } catch {
+                    responseView.textContent = payload;
+                }
             } else {
                 responseView.textContent = payload;
             }
@@ -809,6 +932,20 @@
             runButton.textContent = "Run Request";
         }
     }
+
+    const modelButtons = document.querySelectorAll(".model-btn");
+    const modelPill = document.getElementById("model-pill");
+
+    modelButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            selectedModel = btn.dataset.model;
+            modelButtons.forEach((b) => b.className = "model-btn");
+            btn.classList.add(selectedModel === "openai" ? "active-openai" : "active-anthropic");
+            modelPill.textContent = selectedModel === "openai" ? "model: openai" : "model: claude";
+            modelPill.className = "status-pill " + (selectedModel === "openai" ? "model-pill-openai" : "model-pill-anthropic");
+            updateRequestPreview();
+        });
+    });
 
     tabButtons.forEach((button) => {
         button.addEventListener("click", () => {
@@ -830,6 +967,10 @@
 
             if (activeEndpoint === "mcp-recent-games" && !promptInput.value.trim()) {
                 promptInput.value = "Stephen Curry";
+            }
+
+            if (activeEndpoint === "nba-rag" && !promptInput.value.trim()) {
+                promptInput.value = "Who holds the NBA record for most career three-pointers?";
             }
 
             updateEndpointUI();
@@ -890,7 +1031,71 @@
         return root;
     }
 
+    function renderRagResponse(data) {
+        const root = document.createElement("div");
+        root.className = "mcp-response";
+
+        if (data.answer) {
+            const label = document.createElement("div");
+            label.className = "mcp-section-label";
+            label.textContent = "Answer";
+            root.appendChild(label);
+
+            const answer = document.createElement("div");
+            answer.className = "mcp-summary-text";
+            answer.textContent = data.answer;
+            root.appendChild(answer);
+        }
+
+        if (data.retrievedChunks && data.retrievedChunks.length > 0) {
+            const label = document.createElement("div");
+            label.className = "mcp-section-label";
+            label.textContent = `Retrieved Context (${data.retrievedChunks.length} chunks from vector store)`;
+            root.appendChild(label);
+
+            const list = document.createElement("ul");
+            list.className = "mcp-games-list";
+            data.retrievedChunks.forEach(chunk => {
+                const item = document.createElement("li");
+                item.className = "mcp-game-item";
+                item.textContent = chunk;
+                list.appendChild(item);
+            });
+            root.appendChild(list);
+        }
+
+        return root;
+    }
+
     updateEndpointUI();
+
+    async function detectActiveModel() {
+        try {
+            const res = await fetch("/ask?message=ping");
+            const text = await res.text();
+            const lower = text.toLowerCase();
+            const isNotConfigured = lower.includes("spring_ai_model_chat") || lower.includes("openai_api_key") || lower.includes("anthropic_api_key");
+            if (!isNotConfigured) {
+                const serverIsAnthropic = lower.includes("claude") || lower.includes("anthropic");
+                const detectedModel = serverIsAnthropic ? "anthropic" : "openai";
+                selectedModel = detectedModel;
+                modelButtons.forEach((b) => b.className = "model-btn");
+                const activeBtn = document.querySelector(`.model-btn[data-model="${detectedModel}"]`);
+                if (activeBtn) activeBtn.classList.add(detectedModel === "openai" ? "active-openai" : "active-anthropic");
+                modelPill.textContent = detectedModel === "openai" ? "model: openai" : "model: claude";
+                modelPill.className = "status-pill " + (detectedModel === "openai" ? "model-pill-openai" : "model-pill-anthropic");
+                updateRequestPreview();
+            } else {
+                modelPill.textContent = "model: not configured";
+                modelPill.className = "status-pill model-pill-none";
+            }
+        } catch {
+            modelPill.textContent = "model: unknown";
+            modelPill.className = "status-pill model-pill-none";
+        }
+    }
+
+    detectActiveModel();
 </script>
 </body>
 </html>

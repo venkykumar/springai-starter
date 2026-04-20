@@ -1,6 +1,6 @@
 # Spring AI Starter
 
-A concise starter project for building a Spring Boot application with Spring AI and OpenAI.
+A concise starter project for building a Spring Boot application with Spring AI. Supports OpenAI and Anthropic Claude, switchable via a single environment variable.
 
 It includes:
 
@@ -10,18 +10,20 @@ It includes:
 - an NBA chat endpoint with conversation memory at `/nba/chat`
 - an MCP-backed recent-games endpoint at `/nba/mcp/recent-games-summary`
 - a local MCP server endpoint at `/mcp`
+- an NBA knowledge-base Q&A endpoint at `/nba/ask` (RAG)
 - a small browser UI served from the app itself
 - example tests for the controllers
 
 ## Showcase Features
 
-This project currently highlights five Spring AI features in a simple, demo-friendly way:
+This project currently highlights six Spring AI features in a simple, demo-friendly way:
 
 - `Guided chat responses` through `/ask`
 - `Structured output` through `/nba/player-profile`
 - `Conversation memory` through `/nba/chat`
 - `Tool calling` through `/nba/chat` and `NBATools`
 - `MCP server + client integration` through `/mcp`, `NBAMCPTools`, and `/nba/mcp/recent-games-summary`
+- `RAG (Retrieval-Augmented Generation)` through `/nba/ask`, `RAGConfiguration`, and `SimpleVectorStore`
 
 The NBA chat flow now also demonstrates `tool calling` by letting Spring AI use a local Java tool for stable NBA player facts.
 The MCP flow demonstrates a different pattern: the app exposes a local MCP server, then calls that server back through an MCP client to fetch recent-game data before summarizing it.
@@ -47,6 +49,7 @@ Instead of wiring low-level model API calls by hand, you can use Spring-style ab
 - Spring AI 1.1
 - Maven
 - OpenAI via `spring-ai-starter-model-openai`
+- Anthropic Claude via `spring-ai-starter-model-anthropic`
 
 ## What the App Does
 
@@ -148,6 +151,31 @@ Example JSON response:
 }
 ```
 
+### `GET /nba/ask`
+
+Demonstrates RAG (Retrieval-Augmented Generation). At startup, `RAGConfiguration` reads `nba-knowledge-base.txt`, chunks it with `TokenTextSplitter`, and stores the embeddings in a `SimpleVectorStore`. On each request the question is embedded, the top matching chunks are retrieved by vector similarity, and passed as context to the model — which is instructed to answer only from that context.
+
+The response includes both the answer and the `retrievedChunks`, so you can see exactly what the model was given.
+
+Example:
+
+```bash
+curl "http://localhost:8080/nba/ask?question=Who+holds+the+record+for+most+career+three-pointers"
+```
+
+Example JSON response:
+
+```json
+{
+  "question": "Who holds the record for most career three-pointers?",
+  "answer": "Stephen Curry holds the NBA record for the most career three-pointers made, surpassing Ray Allen's record of 2,973 on December 14, 2021.",
+  "retrievedChunks": [
+    "Stephen Curry holds the NBA record for the most career three-pointers made...",
+    "Ray Allen previously held the career three-point record before Curry surpassed him..."
+  ]
+}
+```
+
 ### `POST /mcp` and `GET /mcp`
 
 The application also exposes a local MCP server at `/mcp` using Spring AI's streamable HTTP server support.
@@ -173,7 +201,7 @@ The home page provides a lightweight interface for trying the app in the browser
 
 - Java 25
 - Maven 3.9+
-- An OpenAI API key if you want to use `/ask`
+- An OpenAI or Anthropic API key to use the AI endpoints
 
 ### Run Locally
 
@@ -189,24 +217,37 @@ Once the app starts, try:
 - `http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry`
 - `http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell%20me%20about%20Stephen%20Curry`
 - `http://localhost:8080/nba/mcp/recent-games-summary?playerName=Stephen%20Curry`
+- `http://localhost:8080/nba/ask?question=Who+has+the+most+career+three-pointers`
 
 ## AI Configuration
 
-Set these environment variables before starting the app:
+`SPRING_AI_MODEL_CHAT` is the single switch. Set it to `openai` or `anthropic` along with the matching API key:
 
+**OpenAI:**
 ```bash
 export SPRING_AI_MODEL_CHAT=openai
-export OPENAI_API_KEY=your_api_key_here
+export OPENAI_API_KEY=your_openai_key
 ```
 
-The application reads them from:
-
-```properties
-spring.ai.model.chat=${SPRING_AI_MODEL_CHAT:none}
-spring.ai.openai.api-key=${OPENAI_API_KEY:}
+**Anthropic Claude:**
+```bash
+export SPRING_AI_MODEL_CHAT=anthropic
+export ANTHROPIC_API_KEY=your_anthropic_key
 ```
 
-If `SPRING_AI_MODEL_CHAT` is not set to `openai`, or if `OPENAI_API_KEY` is missing, the AI-backed endpoints return a friendly configuration message instead of failing hard.
+This sets the server default. The browser UI also has an **OpenAI / Claude** toggle that overrides the model per-request by appending `?model=openai` or `?model=anthropic` to each call — so you can compare both models live without restarting the server (as long as both API keys are set).
+
+You can also override the model from curl:
+```bash
+curl "http://localhost:8080/ask?message=What+is+Spring+AI&model=anthropic"
+curl "http://localhost:8080/ask?message=What+is+Spring+AI&model=openai"
+```
+
+The default model for each provider is `gpt-4o-mini` (OpenAI) and `claude-sonnet-4-5-20251001` (Anthropic), configurable in `application.properties`.
+
+> **RAG note:** `/nba/ask` always uses the OpenAI embedding model for vector similarity search regardless of which chat model is selected. If running with Anthropic, `OPENAI_API_KEY` is still required for the RAG endpoint.
+
+If no model is configured or the matching API key is missing, AI endpoints return a friendly message instead of failing hard.
 
 ## Run Tests
 
@@ -253,6 +294,14 @@ curl "http://localhost:8080/nba/mcp/recent-games-summary?playerName=Stephen%20Cu
 
 This route demonstrates a local MCP server and client working together: the app fetches recent-game data through MCP first, then summarizes it into a clean JSON response.
 
+### 6. RAG knowledge-base Q&A
+
+```bash
+curl "http://localhost:8080/nba/ask?question=Who+has+the+most+career+three-pointers+in+NBA+history"
+```
+
+The response includes both the grounded answer and the `retrievedChunks` the model was given, making the retrieval step visible.
+
 ## Project Structure
 
 ```text
@@ -280,10 +329,12 @@ flowchart LR
     B --> I[AIController<br>/nba/player-profile]
     B --> J[AIController<br>/nba/chat]
     B --> O[AIController<br>/nba/mcp/recent-games-summary]
+    B --> S[AIController<br>/nba/ask]
     D --> E[AIService]
     I --> E
     J --> E
     O --> E
+    S --> E
     E --> F[SpringAIService]
     F --> K[MessageChatMemoryAdvisor]
     K --> L[In-memory chat memory]
@@ -292,6 +343,8 @@ flowchart LR
     F --> P[MCP Sync Client]
     P --> Q[Local MCP server<br>/mcp]
     Q --> R[NBAMCPTools]
+    F --> T[SimpleVectorStore]
+    T --> U[nba-knowledge-base.txt]
     F --> G[Spring AI ChatClient]
     G --> H[OpenAI API]
 ```
@@ -314,6 +367,9 @@ The `/hello` request is handled directly by the app, while `/ask`, `/nba/player-
 - `NBAMCPRecentGamesResponse` keeps the MCP endpoint response aligned with the other typed API responses in the app.
 - `NBAChatResponse` returns the conversation ID and the assistant reply for the chat-memory endpoint.
 - `NBAPlayerProfile` is a Java record used to demonstrate structured output mapping.
+- `RAGConfiguration` creates a `SimpleVectorStore` bean, loads `nba-knowledge-base.txt`, chunks it with `TokenTextSplitter`, and ingests the embeddings at startup.
+- `NBARagResponse` returns the question, the grounded answer, and the `retrievedChunks` the model was given.
+- `src/main/resources/nba-knowledge-base.txt` is the NBA facts document used as the RAG knowledge base.
 - `src/main/resources/static/index.html` provides the built-in landing page.
 
 ## Example Requests
