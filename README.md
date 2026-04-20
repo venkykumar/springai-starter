@@ -7,6 +7,7 @@ It includes:
 - a basic REST endpoint at `/hello`
 - an AI-powered endpoint at `/ask`
 - a streaming endpoint at `/ask/stream` (SSE, token-by-token)
+- a vision/multimodal endpoint at `/vision/describe`
 - an NBA structured-output endpoint at `/nba/player-profile`
 - an NBA chat endpoint with conversation memory at `/nba/chat`
 - an MCP-backed recent-games endpoint at `/nba/mcp/recent-games-summary`
@@ -17,10 +18,11 @@ It includes:
 
 ## Showcase Features
 
-This project currently highlights seven Spring AI features in a simple, demo-friendly way:
+This project currently highlights eight Spring AI features in a simple, demo-friendly way:
 
 - `Guided chat responses` through `/ask`
 - `Streaming responses (SSE)` through `/ask/stream`
+- `Multimodal vision` through `/vision/describe`
 - `Structured output` through `/nba/player-profile`
 - `Conversation memory` through `/nba/chat`
 - `Tool calling` through `/nba/chat` and `NBATools`
@@ -88,6 +90,18 @@ curl "http://localhost:8080/ask/stream?message=What%20is%20Spring%20AI"
 
 The response is a stream of SSE events, each carrying one chunk of the model's output. Spring AI's `.stream().content()` returns a `Flux<String>` which Spring MVC serialises as `text/event-stream`.
 
+### `GET /vision/describe`
+
+Accepts an image URL and an optional prompt, sends both to the model as a multimodal message, and returns a description or answer grounded in the image. Works with both GPT-4o (OpenAI) and Claude Sonnet (Anthropic), which both support vision natively via Spring AI's `media()` API.
+
+Example:
+
+```bash
+curl "http://localhost:8080/vision/describe?imageUrl=https://upload.wikimedia.org/wikipedia/commons/7/7f/Stephen_Curry_Shooting_%28cropped%29_%28cropped%29.jpg&prompt=Describe+the+shooting+form+shown"
+```
+
+The MIME type is inferred from the image URL extension (PNG, GIF, WebP, or JPEG as default). The prompt defaults to `"Describe this image in detail."` if omitted.
+
 ### `GET /nba/player-profile`
 
 Demonstrates structured output with an NBA use case. The app asks the model for a player profile and maps the response directly into a Java record.
@@ -115,6 +129,8 @@ Example JSON response:
 
 Demonstrates Spring AI chat memory with an NBA-focused conversation. Pass the same `conversationId` across requests and the assistant can use earlier messages as context for follow-up questions.
 This flow also has access to a small local NBA tool for quick player facts, which makes it a simple example of Spring AI tool calling.
+
+> **Agentic note:** `/nba/chat` demonstrates the foundation of agentic AI — the model autonomously decides when to call a tool, receives the result, and uses it to form a response. This observe → decide → act loop is the core primitive behind more complex agent architectures.
 
 Examples:
 
@@ -229,6 +245,7 @@ Once the app starts, try:
 - `http://localhost:8080/hello`
 - `http://localhost:8080/ask?message=What%20is%20Spring%20AI`
 - `http://localhost:8080/ask/stream?message=What%20is%20Spring%20AI`
+- `http://localhost:8080/vision/describe?imageUrl=https://upload.wikimedia.org/wikipedia/commons/7/7f/Stephen_Curry_Shooting_%28cropped%29_%28cropped%29.jpg&prompt=Describe+the+shooting+form`
 - `http://localhost:8080/nba/player-profile?playerName=Stephen%20Curry`
 - `http://localhost:8080/nba/chat?conversationId=warriors-thread&message=Tell%20me%20about%20Stephen%20Curry`
 - `http://localhost:8080/nba/mcp/recent-games-summary?playerName=Stephen%20Curry`
